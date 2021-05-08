@@ -1,0 +1,24 @@
+{
+	"name": "@jolie/languageserver",
+	"description": "An implementation of the Language Server Protocol for Jolie language.",
+	"collaborators": [
+		{
+		   "name": "Eros Fabrici"
+		},
+		{
+			"name": "Fabrizio Montesi",
+			"email": "famontesi@gmail.com",
+			"url": "https://www.fabriziomontesi.com/"
+		}
+	],
+	"version": "0.1.0",
+	"license": "MIT",
+	"keywords": ["jolie", "microservices"],
+	"scripts": {
+		"jolive": "npx nodemon --exec jolie ./main.ol",
+		"clean": "rm ./hs_err_pid*"
+	},
+	"dependencies": {
+		"npm": {}
+	}
+}
