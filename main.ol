@@ -8,7 +8,7 @@ from .lsp import GeneralInterface, ServerToClient
 
 type Params {
 	location: string
-	debug?: boolean
+	debug?: bool
 }
 
 /**
