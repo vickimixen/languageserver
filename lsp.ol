@@ -3,55 +3,6 @@
  * see https://microsoft.github.io/language-server-protocol/specification
  */
 
-constants {
-	SymbolKind_File = 1,
-	SymbolKind_Module = 2,
-	SymbolKind_Namespace = 3,
-	SymbolKind_Package = 4,
-	SymbolKind_Class = 5,
-	SymbolKind_Method = 6,
-	SymbolKind_Property = 7,
-	SymbolKind_Field = 8,
-	SymbolKind_Constructor = 9,
-	SymbolKind_Enum = 10,
-	SymbolKind_Interface = 11,
-	SymbolKind_Function = 12,
-	SymbolKind_Variable = 13,
-	SymbolKind_Constant = 14,
-	SymbolKind_String = 15,
-	SymbolKind_Number = 16,
-	SymbolKind_Boolean = 17,
-	SymbolKind_Array = 18,
-}
-
-constants {
-	CompletionItemKind_Text = 1,
-	CompletionItemKind_Method = 2,
-	CompletionItemKind_Function = 3,
-	CompletionItemKind_Constructor = 4,
-	CompletionItemKind_Field = 5,
-	CompletionItemKind_Variable = 6,
-	CompletionItemKind_Class = 7,
-	CompletionItemKind_Interface = 8,
-	CompletionItemKind_Module = 9,
-	CompletionItemKind_Property = 10,
-	CompletionItemKind_Unit = 11,
-	CompletionItemKind_Value = 12,
-	CompletionItemKind_Enum = 13,
-	CompletionItemKind_Keyword = 14,
-	CompletionItemKind_Snippet = 15,
-	CompletionItemKind_Color = 16,
-	CompletionItemKind_File = 17,
-	CompletionItemKind_Reference = 18,
-	CompletionItemKind_Folder = 19,
-	CompletionItemKind_EnumMember = 20,
-	CompletionItemKind_Constant = 21,
-	CompletionItemKind_Struct = 22,
-	CompletionItemKind_Event = 23,
-	CompletionItemKind_Operator = 24,
-	CompletionItemKind_TypeParameter = 25
-}
-
 /*
 * @author Eros Fabrici
 */
@@ -91,24 +42,24 @@ type ClientCapabilities {
 type WorkspaceClientCapabilities {
   applyEdit?: bool
   workspaceEdit? {
-    documentChanges?: bool
-    resourceOperations*: ResourceOperationKind
-    failureHandling?: FailureHandlingKind
+	documentChanges?: bool
+	resourceOperations*: ResourceOperationKind
+	failureHandling?: FailureHandlingKind
   }
   didChangeConfiguration? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   didChangeWatchedFiles? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   symbol? {
-    dynamicRegistration?: bool
-    symbolKind? {
-      valueSet*: SymbolKind
-    }
+	dynamicRegistration?: bool
+	symbolKind? {
+	  valueSet*: SymbolKind
+	}
   }
   executeCommand? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   workspaceFolders?: bool
   configuration?: bool
@@ -123,104 +74,104 @@ type CodeActionKind: string //namespace, see official spec
 
 type TextDocumentClientCapabilities {
   synchronization? {
-    dynamicRegistration?: bool
-    willSave?: bool
-    willSaveWaitUntil?: bool
-    didSave?: bool
+	dynamicRegistration?: bool
+	willSave?: bool
+	willSaveWaitUntil?: bool
+	didSave?: bool
   }
   completion? {
-    dynamicRegistration?: bool
-    completionItem? {
-      snippetSupport?: bool
-      commitCharactersSupport?: bool
-      documentationFormat*: MarkupKind
-      deprecatedSupport?: bool
-      preselectSupport?: bool
-    }
-    completionItemKind? {
-      valueSet*: CompletionItemKind
-    }
-    contextSupport?: bool
+	dynamicRegistration?: bool
+	completionItem? {
+	  snippetSupport?: bool
+	  commitCharactersSupport?: bool
+	  documentationFormat*: MarkupKind
+	  deprecatedSupport?: bool
+	  preselectSupport?: bool
+	}
+	completionItemKind? {
+	  valueSet*: CompletionItemKind
+	}
+	contextSupport?: bool
   }
   hover? {
-    dynamicRegistration?: bool
-    contentFormat*: MarkupKind
+	dynamicRegistration?: bool
+	contentFormat*: MarkupKind
   }
   signatureHelp? {
-    dynamicRegistration?: bool
-    signatureInformation? {
-      documentationFormat*: MarkupKind
-      parameterInformation? {
-        labelOffsetSupport?: bool
-      }
-    }
+	dynamicRegistration?: bool
+	signatureInformation? {
+	  documentationFormat*: MarkupKind
+	  parameterInformation? {
+		labelOffsetSupport?: bool
+	  }
+	}
   }
   references? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   documentHighlight? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   documentSymbol? {
-    dynamicRegistration?: bool
-    symbolKind? {
-      valueSet*: SymbolKind
-    }
-    hierarchicalDocumentSymbolSupport?: bool
+	dynamicRegistration?: bool
+	symbolKind? {
+	  valueSet*: SymbolKind
+	}
+	hierarchicalDocumentSymbolSupport?: bool
   }
   formatting? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   rangeFormatting? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   onTypeFormatting? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   declaration? {
-    dynamicRegistration?: bool
-    linkSupport?: bool
+	dynamicRegistration?: bool
+	linkSupport?: bool
   }
   definition? {
-    dynamicRegistration?: bool
-    linkSupport?: bool
+	dynamicRegistration?: bool
+	linkSupport?: bool
   }
   typeDefinition? {
-    dynamicRegistration?: bool
-    linkSupport?: bool
+	dynamicRegistration?: bool
+	linkSupport?: bool
   }
   implementation? {
-    dynamicRegistration?: bool
-    linkSupport?: bool
+	dynamicRegistration?: bool
+	linkSupport?: bool
   }
   codeAction? {
-    dynamicRegistration?: bool
-    codeActionLiteralSupport? {
-      codeActionKind {
-        valueSet[1,*]: CodeActionKind
-      }
-    }
+	dynamicRegistration?: bool
+	codeActionLiteralSupport? {
+	  codeActionKind {
+		valueSet[1,*]: CodeActionKind
+	  }
+	}
   }
   codeLens? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   documentLink? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
   rename? {
-    dynamicRegistration?: bool
-    prepareSupport?: bool
+	dynamicRegistration?: bool
+	prepareSupport?: bool
   }
   publishDiagnostics? {
-    relatedInformation?: bool
+	relatedInformation?: bool
   }
   foldingRange? {
-    dynamicRegistration?: bool
-    rangeLimit?: int
-    lineFoldingOnly?: bool
+	dynamicRegistration?: bool
+	rangeLimit?: int
+	lineFoldingOnly?: bool
   }
   colorProvider? {
-    dynamicRegistration?: bool
+	dynamicRegistration?: bool
   }
 }
 
@@ -252,10 +203,10 @@ type ServerCapabilities {
   declarationProvider?: undefined //TODO see LSP specification
   executeCommandProvider?: ExecuteCommandOptions
   workspace? {
-    workspaceFolders? {
-      supported?: bool
-      changeNotifications?: string | bool
-    }
+	workspaceFolders? {
+	  supported?: bool
+	  changeNotifications?: string | bool
+	}
   }
   experimental?: undefined
 }
@@ -528,8 +479,8 @@ type CompletionContext {
 }
 
 type EmptyCompletionList {
-    isIncomplete: bool
-    items: void
+	isIncomplete: bool
+	items: void
 }
 
 type CompletionResult: CompletionList | EmptyCompletionList | void
@@ -838,4 +789,53 @@ type DocumentModifications {
   version: int
   uri: string
   text: string
+}
+
+interface GeneralInterface {
+  OneWay:
+    initialized( InitializedParams ),
+    onExit( void ),
+    cancelRequest
+  RequestResponse:
+    initialize( InitializeParams )( InitializeResult ),
+    shutdown( void )( void )
+}
+
+interface TextDocumentInterface {
+  OneWay:
+    didOpen( DidOpenTextDocumentParams ),
+    didChange( DidChangeTextDocumentParams ),
+    willSave( WillSaveTextDocumentParams ),
+    didSave( DidSaveTextDocumentParams ),
+    didClose( DidCloseTextDocumentParams )
+  RequestResponse:
+    willSaveWaitUntil( WillSaveTextDocumentParams )( WillSaveWaitUntilResponse ),
+    completion( CompletionParams )( CompletionResult ),
+    hover( TextDocumentPositionParams )( HoverInformations ),
+    documentSymbol( DocumentSymbolParams )( DocumentSymbolResult ),
+    signatureHelp( TextDocumentPositionParams )( SignatureHelpResponse )
+}
+
+interface WorkspaceInterface {
+  OneWay:
+    didChangeWatchedFiles( DidChangeWatchedFilesParams ),
+    didChangeWorkspaceFolders( DidChangeWorkspaceFoldersParams ),
+    didChangeConfiguration( DidChangeConfigurationParams )
+  RequestResponse:
+    symbol( WorkspaceSymbolParams )( undefined ),
+    executeCommand( ExecuteCommandParams )( ExecuteCommandResult )
+}
+
+interface ServerToClient {
+  OneWay:
+    publishDiagnostics( PublishDiagnosticParams )
+}
+
+interface UtilsInterface {
+  RequestResponse:
+    getDocument( string )( TextDocument )
+  OneWay:
+    insertNewDocument( DidOpenTextDocumentParams ),
+    updateDocument( DocumentModifications ),
+    deleteDocument( DidCloseTextDocumentParams )
 }

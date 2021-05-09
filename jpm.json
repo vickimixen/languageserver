@@ -15,10 +15,13 @@
 	"license": "MIT",
 	"keywords": ["jolie", "microservices"],
 	"scripts": {
-		"jolive": "npx nodemon --exec jolie ./main.ol",
+		"jolive": "npx nodemon --exec jolie ./launcher.ol",
 		"clean": "rm ./hs_err_pid*"
 	},
 	"dependencies": {
 		"npm": {}
+	},
+	"bin": {
+		"joliels": "./launcher.ol"
 	}
 }

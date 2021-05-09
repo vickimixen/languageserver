@@ -1,51 +1,56 @@
-include "console.iol"
-include "string_utils.iol"
-include "runtime.iol"
-include "exec.iol"
+from console import Console
+from exec import Exec
+from string_utils import StringUtils
 
-include "../interfaces/lsp.iol"
+from ..lsp import WorkspaceInterface
 
-execution { concurrent }
+service Workspace {
+	execution: concurrent
+	
+	embed Exec as exec
+	embed Console as console
+	embed StringUtils as stringUtils	
 
-inputPort WorkspaceInput {
-  Location: "local"
-  Interfaces: WorkspaceInterface
-}
- 
-init {
-  println@Console( "workspace running" )()
-}
+	inputPort WorkspaceInput {
+		location: "local"
+		interfaces: WorkspaceInterface
+	}
+	
+	init {
+		println@console( "workspace running" )()
+	}
 
-main {
-  [ didChangeWatchedFiles( notification ) ] {
-    println@Console( "Received didChangedWatchedFiles" )()
-  }
+	main {
+		[ didChangeWatchedFiles( notification ) ] {
+			println@console( "Received didChangedWatchedFiles" )()
+		}
 
-  [ didChangeWorkspaceFolders( notification ) ] {
-    newFolders -> notification.event.added
-    removedFolders -> notification.event.removed
-    for(i = 0, i<#newFolders, i++) {
-      global.workspace.folders[#global.workspace.folders+(i+1)] = newFolders[i]
-    }
-    for(i = 0, i<#removedFolders, i++) {
-      for(j = 0, i<#global.workspace.folders, j++) {
-        if(global.workspace.folders[j] == removedFolders[i]) {
-          undef( global.workspace.folders[j] )
-        }
-      }
-    }
-  }
+		[ didChangeWorkspaceFolders( notification ) ] {
+			newFolders -> notification.event.added
+			removedFolders -> notification.event.removed
+			for(i = 0, i<#newFolders, i++) {
+				global.workspace.folders[#global.workspace.folders+(i+1)] = newFolders[i]
+			}
+			for(i = 0, i<#removedFolders, i++) {
+				for(j = 0, i<#global.workspace.folders, j++) {
+					if(global.workspace.folders[j] == removedFolders[i]) {
+						undef( global.workspace.folders[j] )
+					}
+				}
+			}
+		}
 
-  [ didChangeConfiguration( notification ) ] {
-      valueToPrettyString@StringUtils( notification )(res)
-      println@Console("didChangeConfiguration received " + res)()
-  }
+		[ didChangeConfiguration( notification ) ] {
+			valueToPrettyString@stringUtils( notification )(res)
+			println@console("didChangeConfiguration received " + res)()
+		}
 
-  [ executeCommand( commandParams )( commandResult ) {
-      cmd -> commandParams.commandParams
-      args -> commandParams.arguments
-      command = cmd
-      command.args = args
-      exec@Exec( command )( commandResult )
-  }]
+		[ executeCommand( commandParams )( commandResult ) {
+			cmd -> commandParams.commandParams
+			args -> commandParams.arguments
+			command = cmd
+			command.args = args
+			exec@exec( command )( commandResult )
+		} ]
+	}
 }
