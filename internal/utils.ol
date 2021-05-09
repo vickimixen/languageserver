@@ -29,20 +29,11 @@ service Utils {
 		location: "local://Utils"
 		interfaces: UtilsInterface
 	}
-
-	outputPort Client {
+	
+	outputPort LanguageClient {
 		location: "local://Client"
 		interfaces: ServerToClient
 	}
-
-	// interface InspectionUtilsIface {
-	// RequestResponse:
-	//   inspect
-	// }
-
-	// service InspectionUtils {
-	// interfaces: InspectionUtilsIface
-	// }
 
 	// TODO: refactor this definition to a functional service
 	define inspect {
@@ -106,7 +97,7 @@ service Utils {
 					message = matchRes.group[4]
 					}
 				}
-				publishDiagnostics@Client( diagnosticParams )
+				publishDiagnostics@LanguageClient( diagnosticParams )
 				saveProgram = false
 			)
 
@@ -144,12 +135,12 @@ service Utils {
 			uri = uri
 			diagnostics = void
 			}
-			publishDiagnostics@Client( diagnosticParams )
+			publishDiagnostics@LanguageClient( diagnosticParams )
 		}
 	}
 
 	init {
-		println@Console( "Utils Service started" )(  )
+		println@Console( "Utils Service started at " + global.inputPorts.Utils.location + ", connected to " + LanguageClient.location )(  )
 	}
 
 	main {
@@ -174,6 +165,8 @@ service Utils {
 				version = version
 			}
 
+			println@Console( "Insert new document: " + doc.uri )()
+
 			// TODO: use a dictionary with URIs as keys instead of an array
 			global.textDocument[#global.textDocument] << doc
 		}
@@ -186,8 +179,8 @@ service Utils {
 			found = false
 			for ( i = 0, i < #docsSaved && !found, i++ ) {
 				if ( docsSaved[i].uri == uri ) {
-				found = true
-				indexDoc = i
+					found = true
+					indexDoc = i
 				}
 			}
 			//TODO is found == false, throw ex (should never happen though)
@@ -196,7 +189,7 @@ service Utils {
 				splitReq.regex = "\n"
 				split@StringUtils( splitReq )( splitRes )
 				for ( line in splitRes.result ) {
-				doc.lines[#doc.lines] = line
+					doc.lines[#doc.lines] = line
 				}
 
 				inspect
@@ -204,8 +197,8 @@ service Utils {
 				sendDiagnostics
 
 				doc << {
-				source = docText
-				version = newVersion
+					source = docText
+					version = newVersion
 				}
 
 				docsSaved[indexDoc] << doc
@@ -232,15 +225,16 @@ service Utils {
 			docsSaved -> global.textDocument
 			found = false
 			for ( i = 0, i < #docsSaved && !found, i++ ) {
+				println@Console( " Checking " + docsSaved[i].uri )()
 				if ( docsSaved[i].uri == uri ) {
-				txtDocument << docsSaved[i]
-				found = true
+					txtDocument << docsSaved[i]
+					found = true
 				}
 			}
 
 			if ( !found ) {
 				//TODO if found == false throw exception
-				println@Console( "doc not found!!!" )()
+				println@Console( "Doc not found: " + uri )()
 			}
 		} ]
 	}
