@@ -2,9 +2,8 @@ from console import Console
 from string_utils import StringUtils
 from runtime import Runtime
 from file import File
-from inspector import Inspector
 
-from ..lsp import UtilsInterface, ServerToClient
+from ..lsp import UtilsInterface, ServerToClient, InspectionUtilsInterface
 
 constants {
 	INTEGER_MAX_VALUE = 2147483647
@@ -19,7 +18,6 @@ constants {
 service Utils {
 	execution: sequential
 
-	embed Inspector as Inspector
 	embed Console as Console
 	embed StringUtils as StringUtils
 	embed Runtime as Runtime
@@ -29,118 +27,10 @@ service Utils {
 		location: "local://Utils"
 		interfaces: UtilsInterface
 	}
-	
-	outputPort LanguageClient {
-		location: "local://Client"
-		interfaces: ServerToClient
-	}
 
-	// TODO: refactor this definition to a functional service
-	define inspect {
-		scope( inspection ) {
-			saveProgram = true
-			install( default =>
-				stderr = inspection.(inspection.default)
-				stderr.regex =  "\\s*(.+):\\s*(\\d+):\\s*(error|warning)\\s*:\\s*(.+)"
-				find@StringUtils( stderr )( matchRes )
-				// //getting the uri of the document to be checked
-				//have to do this because the inspector, when returning an error,
-				//returns an uri that looks the following:
-				// /home/eferos93/.atom/packages/Jolie-ide-atom/server/file:/home/eferos93/.atom/packages/Jolie-ide-atom/server/utils.ol
-				//same was with jolie --check
-				if ( !(matchRes.group[1] instanceof string) ) {
-					matchRes.group[1] = ""
-				}
-				indexOf@StringUtils( matchRes.group[1] {
-					word = "file:"
-				} )( indexOfRes )
-				if ( indexOfRes > -1 ) {
-					subStrReq = matchRes.group[1]
-					subStrReq.begin = indexOfRes + 5
-
-					substring@StringUtils( subStrReq )( documentUri ) //line
-				} else {
-					replaceRequest = matchRes.group[1]
-					replaceRequest.regex = "\\\\";
-					replaceRequest.replacement = "/"
-					replaceAll@StringUtils( replaceRequest )( documentUri )
-					// documentUri = "///" + fileName
-				}
-				
-				//line
-				l = int( matchRes.group[2] )
-				//severity
-				sev -> matchRes.group[3]
-				//TODO alwayes return error, never happend to get a warning
-				//but this a problem of the jolie parser
-				if ( sev == "error" ) {
-					s = 1
-				} else {
-					s = 1
-				}
-
-				diagnosticParams << {
-					uri = "file:" + documentUri
-					diagnostics << {
-					range << {
-						start << {
-						line = l-1
-						character = 1
-						}
-						end << {
-						line = l-1
-						character = INTEGER_MAX_VALUE
-						}
-					}
-					severity = s
-					source = "jolie"
-					message = matchRes.group[4]
-					}
-				}
-				publishDiagnostics@LanguageClient( diagnosticParams )
-				saveProgram = false
-			)
-
-			// TODO : fix these:
-			// - remove the directories of this LSP
-			// - add the directory of the open file.
-			getenv@Runtime( "JOLIE_HOME" )( jHome )
-			getFileSeparator@File()( fs )
-			getParentPath@File( uri )( documentPath )
-			regexRequest = uri
-			regexRequest.regex =  "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?"
-			find@StringUtils( regexRequest )( regexResponse ) 
-			inspectionReq << {
-				filename = regexResponse.group[5]
-				source = docText
-				includePaths[0] = jHome + fs + "include"
-				includePaths[1] = documentPath
-			}
-			replacementRequest = regexResponse.group[5]
-			replacementRequest.regex = "%20"
-			replacementRequest.replacement = " "
-			replaceAll@StringUtils(replacementRequest)(inspectionReq.filename)
-
-			replacementRequest = inspectionReq.includePaths[1]
-			replaceAll@StringUtils(replacementRequest)(inspectionReq.includePaths[1])
-			inspectPorts@Inspector( inspectionReq )( inspectionRes )
-		}
-	}
-
-	// TODO: refactor this definition to an internal service
-	define sendDiagnostics {
-		if ( saveProgram ) {
-			doc.jolieProgram << inspectionRes
-			diagnosticParams << {
-			uri = uri
-			diagnostics = void
-			}
-			publishDiagnostics@LanguageClient( diagnosticParams )
-		}
-	}
-
-	init {
-		println@Console( "Utils Service started at " + global.inputPorts.Utils.location + ", connected to " + LanguageClient.location )(  )
+	outputPort InspectionUtils {
+		location: "local://InspectionUtils"
+		interfaces: InspectionUtilsInterface
 	}
 
 	main {
@@ -155,9 +45,18 @@ service Utils {
 				doc.lines[#doc.lines] = line
 			}
 
-			inspect
+			//inspect
+			inspect@InspectionUtils( {
+				uri = uri
+				text = docText
+			} )( inspectionResult )
 
-			sendDiagnostics
+			//sendDiagnostics
+			// if there is no error in the code
+      		if( !is_defined( inspectionResult.diagnostics ) ) {
+        		sendEmptyDiagnostics@InspectionUtils( uri )
+        		doc.jolieProgram << inspectionResult.result
+      		}
 
 			doc << {
 				uri = uri
@@ -192,9 +91,18 @@ service Utils {
 					doc.lines[#doc.lines] = line
 				}
 
-				inspect
+				//inspect
+				inspect@InspectionUtils( {
+					uri = uri
+					text = docText
+				} )( inspectionResult )
 
-				sendDiagnostics
+				//sendDiagnostics
+				// if there is no error in the code
+				if( !is_defined( inspectionResult.diagnostics ) ) {
+					sendEmptyDiagnostics@InspectionUtils( uri )
+					doc.jolieProgram << inspectionResult.result
+				}
 
 				doc << {
 					source = docText
@@ -203,9 +111,19 @@ service Utils {
 
 				docsSaved[indexDoc] << doc
 			} else {
-				inspect
+				println@Console( "Else statements of updateDocument in utils.ol" )(  )
+				//inspect
+				inspect@InspectionUtils( {
+					uri = uri
+					text = docText
+				} )( inspectionResult )
 
-				sendDiagnostics
+				//sendDiagnostics
+				// if there is no error in the code
+				if( !is_defined( inspectionResult.diagnostics ) ) {
+					sendEmptyDiagnostics@InspectionUtils( uri )
+					doc.jolieProgram << inspectionResult.result
+				}
 			}
 		}
 

@@ -791,6 +791,16 @@ type DocumentModifications {
   text: string
 }
 
+type DocumentData {
+  uri: string
+  text: string
+}
+
+type InspectionResult {
+  diagnostics?: undefined //diagnostic message
+  result?: undefined //jolie program
+} 
+
 interface GeneralInterface {
   OneWay:
     initialized( InitializedParams ),
@@ -838,4 +848,11 @@ interface UtilsInterface {
     insertNewDocument( DidOpenTextDocumentParams ),
     updateDocument( DocumentModifications ),
     deleteDocument( DidCloseTextDocumentParams )
+}
+
+interface InspectionUtilsInterface {
+  RequestResponse:
+    inspect( DocumentData )( InspectionResult )
+  OneWay:
+    sendEmptyDiagnostics( DocumentUri )
 }

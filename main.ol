@@ -4,6 +4,7 @@ from runtime import Runtime
 from .internal.text-document import TextDocument
 from .internal.workspace import Workspace
 from .internal.utils import Utils
+from .internal.inspection-utils import InspectionUtils
 from .lsp import GeneralInterface, ServerToClient
 
 type Params {
@@ -22,6 +23,8 @@ service Main(params:Params) {
 	embed Utils
 	embed TextDocument as TextDocument
 	embed Workspace as Workspace
+	embed InspectionUtils
+
 
 	inputPort Input {
 		location: params.location
@@ -108,11 +111,11 @@ service Main(params:Params) {
 				//experimental;
 			}
 		} ]
-
+		
 		[ initialized( initializedParams ) ] {
 			println@Console( "Initialization done " )()
 		}
-
+		
 		[ shutdown( req )( res ) {
 			println@Console( "Shutdown request received..." )()
 			global.receivedShutdownReq = true
