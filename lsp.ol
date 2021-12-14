@@ -744,15 +744,8 @@ type MarkSt {
 
 type DiagnosticParams {
   uri: DocumentUri
-  diagnostics?: Diagnostic
+  diagnostics*: Diagnostic | void
 }
-
-type EmptyDiagnosticParams {
-  uri: DocumentUri
-  diagnostics*: void
-}
-
-type PublishDiagnosticParams: DiagnosticParams | EmptyDiagnosticParams
 
 type Diagnostic {
   range: Range
@@ -833,7 +826,7 @@ interface WorkspaceInterface {
 
 interface ServerToClient {
   OneWay:
-    publishDiagnostics( PublishDiagnosticParams )
+    publishDiagnostics( DiagnosticParams )
 }
 
 interface UtilsInterface {
