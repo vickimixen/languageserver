@@ -744,7 +744,7 @@ type MarkSt {
 
 type DiagnosticParams {
   uri: DocumentUri
-  diagnostics*: Diagnostic | void
+  diagnostics?: Diagnostic
 }
 
 type EmptyDiagnosticParams {
@@ -787,6 +787,11 @@ type TextDocument {
 
 type DocumentModifications {
   version: int
+  uri: string
+  text: string
+}
+
+type DocumentData {
   uri: string
   text: string
 }
@@ -838,4 +843,9 @@ interface UtilsInterface {
     insertNewDocument( DidOpenTextDocumentParams ),
     updateDocument( DocumentModifications ),
     deleteDocument( DidCloseTextDocumentParams )
+}
+
+interface InspectionUtilsInterface {
+    RequestResponse:
+        inspectDocument( DocumentData )(undefined)
 }
