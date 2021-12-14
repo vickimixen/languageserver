@@ -115,6 +115,7 @@ service InspectionUtils {
 				inspectPorts@Inspector( inspectionReq )( inspectionRes )
 				diagnosticParams << {
 					uri << documentData.uri
+					diagnostics = void
 				}
 				publishDiagnostics@LanguageClient( diagnosticParams )
 			}

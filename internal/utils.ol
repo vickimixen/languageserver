@@ -60,9 +60,10 @@ service Utils {
 				text = docText
 			}
 			inspectDocument@InspectionUtils(documentData)(inspectionResult)
-
+			if(is_defined(inspectionResult)){
+				doc.jolieProgram << inspectionResult
+			}
 			doc << {
-				jolieProgram << inspectionResult.result
 				uri = uri
 				source = docText
 				version = version
@@ -98,10 +99,11 @@ service Utils {
 					uri = uri
 					text = docText
 				}
-				inspectDocument@InspectionUtils(documentData)(diagnosticParams)
-
+				inspectDocument@InspectionUtils(documentData)(inspectionResult)
+				if(is_defined(inspectionResult)){
+					doc.jolieProgram << inspectionResult
+				}
 				doc << {
-					jolieProgram << inspectionResult.result
 					source = docText
 					version = newVersion
 				}
@@ -112,7 +114,7 @@ service Utils {
 					uri = uri
 					text = docText
 				}
-				inspectDocument@InspectionUtils(documentData)(diagnosticParams)
+				inspectDocument@InspectionUtils(documentData)(inspectionResult)
 			}
 		}
 
