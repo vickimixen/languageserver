@@ -2,7 +2,7 @@ from console import Console
 from string_utils import StringUtils
 from runtime import Runtime
 from file import File
-from inspector import Inspector
+from ..inspectorJavaService.main import Inspector
 
 from ..lsp import ServerToClient, InspectionUtilsInterface
 
@@ -37,42 +37,81 @@ service InspectionUtils {
 			println@Console("Inside inspectDocument")()
 			scope(inspection){
 				install( default =>
-					stderr = inspection.(inspection.default)
-					stderr.regex =  "\\s*(.+):\\s*(\\d+):\\s*(error|warning)\\s*:\\s*(.+)"
-					find@StringUtils( stderr )( matchRes )
-					if ( !(matchRes.group[1] instanceof string) ) {
-						matchRes.group[1] = ""
-					}
-					indexOf@StringUtils( matchRes.group[1] {
-						word = "file:"
-					} )( indexOfRes )
-					if ( indexOfRes > -1 ) {
-						subStrReq = matchRes.group[1]
-						subStrReq.begin = indexOfRes + 5
-						substring@StringUtils( subStrReq )( documentUri ) //filename
+					stderr << inspection.(inspection.default)
+					if(is_defined(stderr)){						
+						for(codeMessage in stderr.exceptions){
+							startLine << codeMessage.context.startLine
+							endLine << codeMessage.context.endLine
+							//severity
+							//TODO alwayes return error, never happend to get a warning
+							//but this a problem of the jolie parser
+							s = 1
+
+							startColumn << codeMessage.context.startColumn
+							endColumn << codeMessage.context.endColumn
+
+							diagnosticParams << {
+								uri << documentData.uri
+								diagnostics << {
+									severity = s
+									range << {
+										start << {
+										line = startLine -1
+										character = startColumn
+										}
+										end << {
+										line = endLine -1
+										character = endColumn
+										}
+									}
+									source = "jolie"
+									message << codeMessage.description + codeMessage.help
+								}
+							}
+							publishDiagnostics@LanguageClient( diagnosticParams )
+						}
 					} else {
-						replaceRequest = matchRes.group[1]
-						replaceRequest.regex = "\\\\";
-						replaceRequest.replacement = "/"
-						replaceAll@StringUtils( replaceRequest )( documentUri )
-						// documentUri = "///" + fileName
-					}
-					
-					//line
-					l = int( matchRes.group[2] )
-					//severity
-					sev -> matchRes.group[3]
-					//TODO alwayes return error, never happend to get a warning
-					//but this a problem of the jolie parser
-					if ( sev == "error" ) {
-						s = 1
-					} else {
-						s = 1
-					}
-					diagnosticParams << {
-						uri << documentData.uri
-						diagnostics << {
-							severity = 1
+						stderr.regex =  "\\s*(.+):\\s*(\\d+):\\s*(error|warning)\\s*:\\s*(.+)"
+						find@StringUtils( stderr )( matchRes )
+						// //getting the uri of the document to be checked
+						//have to do this because the inspector, when returning an error,
+						//returns an uri that looks the following:
+						// /home/eferos93/.atom/packages/Jolie-ide-atom/server/file:/home/eferos93/.atom/packages/Jolie-ide-atom/server/utils.ol
+						//same was with jolie --check
+						if ( !(matchRes.group[1] instanceof string) ) {
+							matchRes.group[1] = ""
+						}
+						indexOf@StringUtils( matchRes.group[1] {
+							word = "file:"
+						} )( indexOfRes )
+						if ( indexOfRes > -1 ) {
+							subStrReq = matchRes.group[1]
+							subStrReq.begin = indexOfRes + 5
+
+							substring@StringUtils( subStrReq )( documentUri ) //line
+						} else {
+							replaceRequest = matchRes.group[1]
+							replaceRequest.regex = "\\\\";
+							replaceRequest.replacement = "/"
+							replaceAll@StringUtils( replaceRequest )( documentUri )
+							// documentUri = "///" + fileName
+						}
+						
+						//line
+						l = int( matchRes.group[2] )
+						//severity
+						sev -> matchRes.group[3]
+						//TODO alwayes return error, never happend to get a warning
+						//but this a problem of the jolie parser
+						if ( sev == "error" ) {
+							s = 1
+						} else {
+							s = 1
+						}
+
+						diagnosticParams << {
+							uri = "file:" + documentUri
+							diagnostics << {
 							range << {
 								start << {
 								line = l-1
@@ -83,11 +122,13 @@ service InspectionUtils {
 								character = INTEGER_MAX_VALUE
 								}
 							}
+							severity = s
 							source = "jolie"
 							message = matchRes.group[4]
+							}
 						}
+						publishDiagnostics@LanguageClient( diagnosticParams )
 					}
-					publishDiagnostics@LanguageClient( diagnosticParams )
 				);
 				// TODO : fix these:
 				// - remove the directories of this LSP
@@ -112,7 +153,7 @@ service InspectionUtils {
 				replacementRequest = inspectionReq.includePaths[1]
 				replaceAll@StringUtils(replacementRequest)(inspectionReq.includePaths[1])
 				
-				inspectPorts@Inspector( inspectionReq )( inspectionRes )
+				inspectFile@Inspector( inspectionReq )( inspectionRes )
 				diagnosticParams << {
 					uri << documentData.uri
 					diagnostics = void
