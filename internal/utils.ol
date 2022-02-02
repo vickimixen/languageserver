@@ -59,6 +59,8 @@ service Utils {
 				uri = uri
 				text = docText
 			}
+			
+			println@Console("Inside insertNewDocument")()
 			inspectDocument@InspectionUtils(documentData)(inspectionResult)
 			if(is_defined(inspectionResult)){
 				doc.jolieProgram << inspectionResult
@@ -99,6 +101,8 @@ service Utils {
 					uri = uri
 					text = docText
 				}
+				
+				println@Console("Inside updateDocument")()
 				inspectDocument@InspectionUtils(documentData)(inspectionResult)
 				if(is_defined(inspectionResult)){
 					doc.jolieProgram << inspectionResult
@@ -114,6 +118,7 @@ service Utils {
 					uri = uri
 					text = docText
 				}
+				println@Console("Inside updateDocument, else")()
 				inspectDocument@InspectionUtils(documentData)(inspectionResult)
 			}
 		}
