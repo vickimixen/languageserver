@@ -2,7 +2,8 @@ from console import Console
 from string_utils import StringUtils
 from runtime import Runtime
 from file import File
-from ..inspectorJavaService.main import Inspector
+from ..inspectorJavaService.inspector import Inspector
+from ..inspectorJavaService.inspector import CodeCheckExceptionType
 
 from ..lsp import ServerToClient, InspectionUtilsInterface
 
@@ -38,17 +39,35 @@ service InspectionUtils {
 			scope(inspection){
 				install( default =>
 					stderr << inspection.(inspection.default)
-					if(is_defined(stderr)){						
+					isCodeCheckException = stderr instanceof CodeCheckExceptionType
+					if(isCodeCheckException){
+						println@Console("Error is a codecheckException")()
+						valueToPrettyString@StringUtils(stderr)(pretty)
+						println@Console("stderr:\n"+pretty)()
 						for(codeMessage in stderr.exceptions){
-							startLine << codeMessage.context.startLine
-							endLine << codeMessage.context.endLine
+							if(is_defined(codeMessage.context)){
+								startLine << codeMessage.context.startLine
+								endLine << codeMessage.context.endLine
+								startColumn << codeMessage.context.startColumn
+								endColumn << codeMessage.context.endColumn
+							} else {
+								startLine = 1
+								endLine = 1
+								startColumn = 0
+								endColumn = 0
+							}
+							if(is_defined(codeMessage.description)){
+								message = codeMessage.description
+							} else {
+								message = ""
+							}
+							if(is_defined(codeMessage.help)){
+								message += codeMessage.help
+							}
 							//severity
 							//TODO alwayes return error, never happend to get a warning
 							//but this a problem of the jolie parser
 							s = 1
-
-							startColumn << codeMessage.context.startColumn
-							endColumn << codeMessage.context.endColumn
 
 							diagnosticParams << {
 								uri << documentData.uri
@@ -65,12 +84,15 @@ service InspectionUtils {
 										}
 									}
 									source = "jolie"
-									message << codeMessage.description + codeMessage.help
+									message = message
 								}
 							}
 							publishDiagnostics@LanguageClient( diagnosticParams )
 						}
 					} else {
+						println@Console("Error is not a codeCheckException!!!")()
+						valueToPrettyString@StringUtils(stderr)(pretty)
+						println@Console("stderr:\n"+pretty)()
 						stderr.regex =  "\\s*(.+):\\s*(\\d+):\\s*(error|warning)\\s*:\\s*(.+)"
 						find@StringUtils( stderr )( matchRes )
 						// //getting the uri of the document to be checked
@@ -158,10 +180,9 @@ service InspectionUtils {
 					uri << documentData.uri
 					diagnostics = void
 				}
+				
 				publishDiagnostics@LanguageClient( diagnosticParams )
 			}
         }]
     }
-
-
 }

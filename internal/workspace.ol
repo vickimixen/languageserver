@@ -38,6 +38,7 @@ service Workspace {
 					}
 				}
 			}
+			println@console("workspacefolders in workspace file: "+global.workspace.folders[0].uri)()
 		}
 
 		[ didChangeConfiguration( notification ) ] {

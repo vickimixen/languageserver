@@ -842,3 +842,45 @@ interface InspectionUtilsInterface {
     RequestResponse:
         inspectDocument( DocumentData )(undefined)
 }
+
+type CompletionImportSymbolRequest: any {
+	regexMatch*:string
+	txtDocUri:string
+}
+type CompletionImportSymbolResult: any {
+	result*:string
+}
+
+type CompletionImportModuleRequest: any {
+	regexMatch*:string
+	txtDocUri:string
+}
+
+type CompletionImportModuleResult: any {
+	result*:string
+}
+
+type CompletionOperationRequest: any {
+	codeLine:string
+	jolieProgram?:undefined
+}
+
+type CompletionOperationResult: any {
+	result*:CompletionItem
+}
+
+type CompletionKeywordRequest: any {
+	codeLine:string
+}
+
+type CompletionKeywordResult: any {
+	result*:CompletionItem
+}
+
+interface CompletionHelperInterface {
+	RequestResponse:
+		completionOperation(CompletionOperationRequest)(CompletionOperationResult),
+		completionKeywords(CompletionKeywordRequest)(CompletionKeywordResult),
+		completionImportModule(CompletionImportModuleRequest)(CompletionImportModuleResult),
+		completionImportSymbol(CompletionImportSymbolRequest)(CompletionImportSymbolResult)
+}

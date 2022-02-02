@@ -5,6 +5,7 @@ from .internal.text-document import TextDocument
 from .internal.workspace import Workspace
 from .internal.utils import Utils
 from .internal.inspection-utils import InspectionUtils
+from .internal.completionHelper import CompletionHelper
 from .lsp import GeneralInterface, ServerToClient
 
 type Params {
@@ -24,6 +25,7 @@ service Main(params:Params) {
 	embed TextDocument as TextDocument
 	embed Workspace as Workspace
 	embed InspectionUtils
+	embed CompletionHelper
 
 	inputPort Input {
 		location: params.location
