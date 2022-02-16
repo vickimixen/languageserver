@@ -41,9 +41,6 @@ service InspectionUtils {
 					stderr << inspection.(inspection.default)
 					isCodeCheckException = stderr instanceof CodeCheckExceptionType
 					if(isCodeCheckException){
-						println@Console("Error is a codecheckException")()
-						valueToPrettyString@StringUtils(stderr)(pretty)
-						println@Console("stderr:\n"+pretty)()
 						for(codeMessage in stderr.exceptions){
 							if(is_defined(codeMessage.context)){
 								startLine << codeMessage.context.startLine
@@ -90,9 +87,6 @@ service InspectionUtils {
 							publishDiagnostics@LanguageClient( diagnosticParams )
 						}
 					} else {
-						println@Console("Error is not a codeCheckException!!!")()
-						valueToPrettyString@StringUtils(stderr)(pretty)
-						println@Console("stderr:\n"+pretty)()
 						stderr.regex =  "\\s*(.+):\\s*(\\d+):\\s*(error|warning)\\s*:\\s*(.+)"
 						find@StringUtils( stderr )( matchRes )
 						// //getting the uri of the document to be checked
@@ -180,7 +174,6 @@ service InspectionUtils {
 					uri << documentData.uri
 					diagnostics = void
 				}
-				
 				publishDiagnostics@LanguageClient( diagnosticParams )
 			}
         }]

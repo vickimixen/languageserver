@@ -3,6 +3,7 @@ from string_utils import StringUtils
 from runtime import Runtime
 from file import File
 from exec import Exec
+from ..inspectorJavaService.inspector import Inspector
 
 from ..lsp import TextDocumentInterface, UtilsInterface, CompletionHelperInterface
 
@@ -47,6 +48,8 @@ service TextDocument {
 	embed Console as Console
 	embed StringUtils as StringUtils
 	embed Runtime as Runtime
+	embed Inspector as Inspector
+	embed File as File
 
 	inputPort TextDocumentInput {
 		location: "local"
@@ -417,5 +420,60 @@ service TextDocument {
 			// }
 		// }
 		]
+
+		[ definition(request)(response){
+			response = void
+			install( FileNotFound => nullProcess)
+			install( IOException => nullProcess)
+			// Get the text of the file, which we get the definition request from
+			split@StringUtils(request.textDocument.uri {regex = "///"})(splitResponse)
+			readFile@File({filename = splitResponse.result[1]})(readFileResponse)
+			documentData << {uri = request.textDocument.uri, text = readFileResponse}
+
+			// Get the symboltabel by inspecting the file
+			// Following code matches code in inspection-utils.ol
+			// TODO : fix these:
+			// - remove the directories of this LSP
+			// - add the directory of the open file.
+			getenv@Runtime( "JOLIE_HOME" )( jHome )
+			getFileSeparator@File()( fs )
+			getParentPath@File( documentData.uri )( documentPath )
+			regexRequest << documentData.uri
+			regexRequest.regex =  "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?"
+			find@StringUtils( regexRequest )( regexResponse )
+			inspectionReq << {
+				filename = regexResponse.group[5]
+				source = documentData.text
+				includePaths[0] = jHome + fs + "include"
+				includePaths[1] = documentPath
+				position << request.position
+			}
+			replacementRequest = regexResponse.group[5]
+			replacementRequest.regex = "%20"
+			replacementRequest.replacement = " "
+			replaceAll@StringUtils(replacementRequest)(inspectionReq.filename)
+			
+			replacementRequest = inspectionReq.includePaths[1]
+			replaceAll@StringUtils(replacementRequest)(inspectionReq.includePaths[1])
+			inspectModule@Inspector(inspectionReq)(inspectResponse)
+
+			for(i = 0, i < #inspectResponse.module, i++){
+				contains@StringUtils(inspectResponse.module[i] {substring = inspectionReq.filename})(containsRes)
+				response << {
+					uri = inspectResponse.module[i]
+					range << {
+						start <<  {
+							line = inspectResponse.module[i].context.startLine -1
+							character = inspectResponse.module[i].context.startColumn
+						}
+						end << {
+							line = inspectResponse.module[i].context.endLine -1
+							character = inspectResponse.module[i].context.endColumn
+						}
+					}
+				}
+				
+			}
+		}]
 	}
 }

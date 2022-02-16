@@ -128,11 +128,11 @@ public class PathsInJolie extends JavaService{
                 BufferedReader br = new BufferedReader(fr);
                 String line;
                 while((line=br.readLine())!=null){
-                    if(line.matches("^(service|interface)\\s.+\\s\\{.*$")){
+                    if(line.matches("^(service|interface)\\s.+\\s\\{.*$") || line.matches("^type\\s.+(\\s\\{|\\:\\s.\\{).*$")){
                         String[] tempSplit = line.split(" ");
-                        String serviceName = tempSplit[1];
-                        if(serviceName.startsWith(symbol)){
-                            possibleSymbolsVector.add(Value.create(serviceName));
+                        String name = tempSplit[1];
+                        if(name.startsWith(symbol)){
+                            possibleSymbolsVector.add(Value.create(name));
                         }
                     }
                 }
