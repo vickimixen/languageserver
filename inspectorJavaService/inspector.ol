@@ -131,6 +131,17 @@ type InspectionRequest {
 	includePaths*: string
 	source?: string
 }
+type ModuleInspectionRequest {
+	filename: string
+	includePaths*: string
+	source?: string
+	position: Position
+}
+
+type Position {
+	character: int
+	line: int
+}
 
 interface InspectorInterface {
 RequestResponse:
@@ -148,7 +159,8 @@ RequestResponse:
 		throws	ParserException( WeakJavaExceptionType )
 						SemanticException( WeakJavaExceptionType )
 						FileNotFoundException( WeakJavaExceptionType )
-						IOException( WeakJavaExceptionType )
+						IOException( WeakJavaExceptionType ),
+	inspectModule(ModuleInspectionRequest)(undefined)
 }
 
 service Inspector {

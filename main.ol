@@ -46,6 +46,7 @@ service Main(params:Params) {
 			osc.publishDiagnostics.alias = "textDocument/publishDiagnostics"
 			osc.publishDiagnostics.isNullable = true
 			osc.signatureHelp.alias = "textDocument/signatureHelp"
+			osc.definition.alias = "textDocument/definition"
 			osc.didChangeWatchedFiles.alias = "workspace/didChangeWatchedFiles"
 			osc.didChangeWorkspaceFolders.alias = "workspace/didChangeWorkspaceFolders"
 			osc.didChangeConfiguration.alias = "workspace/didChangeConfiguration"
@@ -105,8 +106,9 @@ service Main(params:Params) {
 				triggerCharacters[0] = "@"
 				}
 				//signatureHelpProvider.triggerCharacters[0] = "("
-				definitionProvider = false
+				definitionProvider = true
 				hoverProvider = true
+				declarationProvider = false
 				documentSymbolProvider = false
 				referenceProvider = false
 				//experimental;

@@ -735,6 +735,8 @@ type Hover {
 
 type HoverInformations: Hover | void
 
+type DefinitionResponse: Location | void
+
 type MarkedString: string | MarkSt
 
 type MarkSt {
@@ -811,7 +813,8 @@ interface TextDocumentInterface {
     completion( CompletionParams )( CompletionResult ),
     hover( TextDocumentPositionParams )( HoverInformations ),
     documentSymbol( DocumentSymbolParams )( DocumentSymbolResult ),
-    signatureHelp( TextDocumentPositionParams )( SignatureHelpResponse )
+    signatureHelp( TextDocumentPositionParams )( SignatureHelpResponse ),
+	definition(TextDocumentPositionParams)(DefinitionResponse)
 }
 
 interface WorkspaceInterface {

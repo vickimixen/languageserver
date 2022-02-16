@@ -33,6 +33,12 @@ import jolie.lang.parse.ast.types.TypeDefinition;
 import jolie.lang.parse.ast.types.TypeDefinitionLink;
 import jolie.lang.parse.ast.types.TypeInlineDefinition;
 import jolie.lang.parse.module.ModuleException;
+import jolie.lang.parse.module.ModuleSource;
+import jolie.lang.parse.module.ImportedSymbolInfo;
+import jolie.lang.parse.module.LocalSymbolInfo;
+import jolie.lang.parse.module.SymbolInfo;
+import jolie.lang.parse.module.SymbolTable;
+import jolie.lang.parse.module.Modules.ModuleParsedResult;
 import jolie.lang.parse.util.Interfaces;
 import jolie.lang.parse.util.ParsingUtils;
 import jolie.lang.parse.util.ProgramInspector;
@@ -45,6 +51,7 @@ import jolie.runtime.embedding.RequestResponse;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.util.*;
 
 //@AndJarDeps( "jolie-inspector-0.1.0.jar" )
@@ -111,6 +118,8 @@ public class Inspector extends JavaService {
 		private static final String MAX = "max";
 	}
 
+	// Used in languageserver/internal/inspection-utils.ol
+	// Outputs information about the file or errors in case it does not compile
 	@RequestResponse
 	public Value inspectFile( Value request ) throws FaultException {
 		try {
@@ -118,8 +127,9 @@ public class Inspector extends JavaService {
 			String[] includePaths =
 				request.getChildren( "includePaths" ).stream().map( Value::strValue ).toArray( String[]::new );
 			if( request.hasChildren( "source" ) ) {
-				inspector = getInspector( request.getFirstChild( "filename" ).strValue(),
-					Optional.of( request.getFirstChild( "source" ).strValue() ), includePaths, interpreter() );
+				String source = request.getFirstChild( "source" ).strValue();
+				String fileName = request.getFirstChild( "filename" ).strValue();
+				inspector = getInspector( fileName, Optional.of( source ), includePaths, interpreter() );
 			} else {
 				inspector =
 					getInspector( request.getFirstChild( "filename" ).strValue(), Optional.empty(), includePaths,
@@ -130,7 +140,6 @@ public class Inspector extends JavaService {
 			throw new FaultException( ex );
 		} catch( CodeCheckException ex ) {
 			Value codeCheckExceptionType = Value.create();
-			int i = 0;
 			for(CodeCheckMessage msg : ex.messages()){
 				Value codeCheckMessage = Value.create();
 				Value context = Value.create();
@@ -151,6 +160,103 @@ public class Inspector extends JavaService {
 			}
 			throw new FaultException("CodeCheckException", codeCheckExceptionType);
 		}
+	}
+
+	@RequestResponse
+	public Value inspectModule( Value request ) {
+		Value result = Value.create();
+		try {
+			final SemanticVerifier parseResult;
+			String[] includePaths =
+				request.getChildren( "includePaths" ).stream().map( Value::strValue ).toArray( String[]::new );
+			int column = request.getFirstChild("position").getFirstChild("character").intValue();
+			int line = request.getFirstChild("position").getFirstChild("line").intValue();
+			String wordWeAreLookingFor;
+			if( request.hasChildren( "source" ) ) {
+				String source = request.getFirstChild( "source" ).strValue();
+				String[] codeLines = source.split("\n");
+				String correctLine = codeLines[line].stripTrailing();
+				String beforeCourser = correctLine.substring(0, column).stripTrailing();
+				String[] splitByNonLetter = beforeCourser.split("[\\W]");
+				int startOfWord = 0;
+				for (int i = 0; i < splitByNonLetter.length-1; i++) {
+					if(splitByNonLetter[i].length() == 0){
+						startOfWord += 1;
+					} else {
+						startOfWord += splitByNonLetter[i].length();
+						if( (i+1) < splitByNonLetter.length ){
+							if(splitByNonLetter[i+1].length() >=1){
+								startOfWord += 1;
+							}
+						}
+					}
+				}
+				String lineStartOfWord = correctLine.substring(startOfWord).trim();
+				if(lineStartOfWord.matches("^[\\w]+[\\W]+.*$")){
+					wordWeAreLookingFor = lineStartOfWord.split("[^\\w]")[0];
+				} else {
+					wordWeAreLookingFor = lineStartOfWord;
+				}
+				String fileName = request.getFirstChild( "filename" ).strValue();
+				parseResult = getModuleInspector( fileName, Optional.of( source ), includePaths, interpreter() );
+			} else {
+				parseResult =
+					getModuleInspector( request.getFirstChild( "filename" ).strValue(), Optional.empty(), includePaths,
+						interpreter() );
+				wordWeAreLookingFor = "";
+			}
+			String importedPath = "";
+			String importedName = "";
+			for( Map.Entry<URI, SymbolTable> pair : parseResult.symbolTables().entrySet()) {
+				for (ImportedSymbolInfo importedSymbol : pair.getValue().importedSymbolInfos()) {
+					if(wordWeAreLookingFor.contains(importedSymbol.name())){
+						importedName = importedSymbol.originalSymbolName();
+						if(importedSymbol.moduleSource().isPresent()){
+							importedPath = importedSymbol.moduleSource().get().uri().toString();
+						} else {
+							importedPath = pair.getKey().toString();
+						}
+						break;
+					}					
+				}
+			}
+			for( Map.Entry<URI, SymbolTable> pair : parseResult.symbolTables().entrySet()) {
+				ValueVector uri = result.getChildren("module");	
+				for (LocalSymbolInfo localSymbol : pair.getValue().localSymbols()) {
+					if(wordWeAreLookingFor.contains(localSymbol.name())){
+						Value module = Value.create(pair.getKey().toString());
+						Value context = Value.create();
+						context.getNewChild("startLine").setValue(localSymbol.context().startLine());
+						context.getNewChild("endLine").setValue(localSymbol.context().endLine());
+						context.getNewChild("startColumn").setValue(localSymbol.context().startColumn());
+						context.getNewChild("endColumn").setValue(localSymbol.context().endColumn());
+						module.getNewChild("context").deepCopy(context);
+						module.getNewChild("name").setValue(localSymbol.name());
+						uri.add(module);
+						return result;
+					} else if (!importedName.isEmpty() && !importedPath.isEmpty()){
+						if(importedName.equals(localSymbol.name()) && importedPath.equals(pair.getKey().toString())){
+							Value module = Value.create(importedPath);
+							Value context = Value.create();
+							context.getNewChild("startLine").setValue(localSymbol.context().startLine());
+							context.getNewChild("endLine").setValue(localSymbol.context().endLine());
+							context.getNewChild("startColumn").setValue(localSymbol.context().startColumn());
+							context.getNewChild("endColumn").setValue(localSymbol.context().endColumn());
+							module.getNewChild("context").deepCopy(context);
+							module.getNewChild("name").setValue(importedName);
+							uri.add(module);
+							return result;
+						}
+					}				
+				}
+			}
+			return result;
+		} catch( CommandLineException | IOException ex) {
+			System.out.println("CommandLine or IO Exception happened while inspecting module");
+		} catch( CodeCheckException ex ) {
+			System.out.println("CodeCheckException happened while inspecting module");
+		}
+		return result;
 	}
     
 	@RequestResponse
@@ -222,6 +328,35 @@ public class Inspector extends JavaService {
 			configuration,
 			true );
 		return ParsingUtils.createInspector( program );
+	}
+
+	private static SemanticVerifier getModuleInspector( String filename, Optional< String > source, String[] includePaths,
+		Interpreter interpreter )
+		throws CommandLineException, IOException, CodeCheckException {
+		String[] args = { filename };
+		Interpreter.Configuration interpreterConfiguration =
+			new CommandLineParser( args, Inspector.class.getClassLoader() ).getInterpreterConfiguration();
+		SemanticVerifier.Configuration configuration =
+			new SemanticVerifier.Configuration( interpreterConfiguration.executionTarget() );
+		configuration.setCheckForMain( false );
+		final InputStream sourceIs;
+		if( source.isPresent() ) {
+			sourceIs = new ByteArrayInputStream( source.get().getBytes() );
+		} else {
+			sourceIs = interpreterConfiguration.inputStream();
+		}
+		SemanticVerifier semanticVerifierResult = ParsingUtils.parseProgramModule(
+			sourceIs,
+			interpreterConfiguration.programFilepath().toURI(),
+			interpreterConfiguration.charset(),
+			includePaths,
+			// interpreterConfiguration.packagePaths(),
+			interpreter.configuration().packagePaths(), // TODO make this a parameter from the Jolie request
+			interpreterConfiguration.jolieClassLoader(),
+			interpreterConfiguration.constants(),
+			configuration,
+			true );
+		return semanticVerifierResult;
 	}
     
 	private static Value buildFileInspectionResponse( ProgramInspector inspector ) {
