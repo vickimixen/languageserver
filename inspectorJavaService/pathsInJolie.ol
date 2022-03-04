@@ -1,3 +1,5 @@
+from ..lsp import DocumentUri, WorkSpaceSymbolResponse 
+
 type InspectPackagePathRequest: any {
 	joliePackagePath:string
     sourcePath:string
@@ -17,10 +19,18 @@ type InspectSymbolResult: any {
 	possibleSymbols*:string
 }
 
+type findSymbolsInAllFilesRequest {
+    symbol: string
+    rootUri: DocumentUri
+}
+
+type findSymbolsInAllFilesResponse: WorkSpaceSymbolResponse
+
 interface PathsInJolieInterface {
 	RequestResponse:
 	inspectPackagePath(InspectPackagePathRequest)(InspectPackagePathResult),
-    inspectSymbol(InspectSymbolRequest)(InspectSymbolResult)
+    inspectSymbol(InspectSymbolRequest)(InspectSymbolResult),
+    findSymbolInAllFiles(findSymbolsInAllFilesRequest)(findSymbolsInAllFilesResponse)
 }
 service PathsInJolie {
     inputPort PathsInJolie {

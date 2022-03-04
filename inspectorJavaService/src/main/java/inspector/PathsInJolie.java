@@ -1,9 +1,11 @@
 package joliex.inspector;
 
 import java.util.List;
+import java.util.stream.Stream;
 import java.util.ArrayList;
 import java.io.BufferedReader;
 import java.io.File;
+import java.nio.file.Files;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -142,5 +144,43 @@ public class PathsInJolie extends JavaService{
         }
 
         return result;
+    }
+
+    public Value findSymbolInAllFiles(Value request) {
+        System.out.println("Inside findSymbolInAllFiles");
+        String symbol = request.getFirstChild("symbol").strValue();
+        String stringRootUri = request.getFirstChild("rootUri").strValue();
+        Value result = Value.create();
+        try{
+            File rootUri = new File(stringRootUri);
+            if(rootUri.isDirectory()){
+                Stream<Path> allFiles = Files.walk(rootUri.toPath());
+                File[] olFiles = allFiles.filter(Files::isRegularFile).filter(path -> path.toString().endsWith(".ol")).map(Path::toFile).toArray( File[]::new );
+                for (File olfile : olFiles) {
+                    System.out.println(olfile.toString());
+                    FileReader fr = new FileReader(olfile);
+                    BufferedReader br = new BufferedReader(fr);
+                    String line;
+                    int lineCounter = 0;
+                    while((line=br.readLine())!=null){
+                        if(line.contains(symbol)){
+                            System.out.println("line: "+line);
+                            Value name = Value.create(symbol);
+                            Value kind = Value.create(5);
+                            Value start = Value.create();
+                            start.getFirstChild("line").setValue(lineCounter);
+                            Value range = Value.create();
+
+                            Value location = Value.create();
+                        }
+                        lineCounter += 1;
+                    }
+                }
+            }
+            return result;
+        }catch (IOException ex){
+            System.out.println("Got IOException:\n"+ex);
+            return result;
+        }
     }
 }

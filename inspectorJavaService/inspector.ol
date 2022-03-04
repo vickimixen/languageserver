@@ -134,13 +134,25 @@ type InspectionRequest {
 type ModuleInspectionRequest {
 	filename: string
 	includePaths*: string
-	source?: string
+	source: string
 	position: Position
 }
 
 type Position {
 	character: int
 	line: int
+}
+
+type ModuleInspectionResponse {
+	module*: string {
+		context {
+			startLine: int
+			endLine: int
+			startColumn: int
+			endColumn: int
+		}
+		name: string
+	}
 }
 
 interface InspectorInterface {
@@ -160,7 +172,7 @@ RequestResponse:
 						SemanticException( WeakJavaExceptionType )
 						FileNotFoundException( WeakJavaExceptionType )
 						IOException( WeakJavaExceptionType ),
-	inspectModule(ModuleInspectionRequest)(undefined)
+	inspectModule(ModuleInspectionRequest)(ModuleInspectionResponse)
 }
 
 service Inspector {
