@@ -165,93 +165,76 @@ public class Inspector extends JavaService {
 	@RequestResponse
 	public Value inspectModule( Value request ) {
 		Value result = Value.create();
+		String[] includePaths =	request.getChildren( "includePaths" ).stream().map( Value::strValue ).toArray( String[]::new );
+		int column = request.getFirstChild("position").getFirstChild("character").intValue();
+		int line = request.getFirstChild("position").getFirstChild("line").intValue();
+		String fileName = request.getFirstChild( "filename" ).strValue();
 		try {
-			final SemanticVerifier parseResult;
-			String[] includePaths =
-				request.getChildren( "includePaths" ).stream().map( Value::strValue ).toArray( String[]::new );
-			int column = request.getFirstChild("position").getFirstChild("character").intValue();
-			int line = request.getFirstChild("position").getFirstChild("line").intValue();
 			String wordWeAreLookingFor;
-			if( request.hasChildren( "source" ) ) {
-				String source = request.getFirstChild( "source" ).strValue();
-				String[] codeLines = source.split("\n");
-				String correctLine = codeLines[line].stripTrailing();
-				String beforeCourser = correctLine.substring(0, column).stripTrailing();
-				String[] splitByNonLetter = beforeCourser.split("[\\W]");
-				int startOfWord = 0;
-				for (int i = 0; i < splitByNonLetter.length-1; i++) {
-					if(splitByNonLetter[i].length() == 0){
-						startOfWord += 1;
-					} else {
-						startOfWord += splitByNonLetter[i].length();
-						if( (i+1) < splitByNonLetter.length ){
-							if(splitByNonLetter[i+1].length() >=1){
-								startOfWord += 1;
-							}
+			String source = request.getFirstChild( "source" ).strValue();
+			String[] codeLines = source.lines().toArray(String[]::new); //Split source into lines
+			String correctLine = codeLines[line].stripTrailing(); // get the line from the position
+			String beforeCourser = correctLine.substring(0, column).stripTrailing(); //get part of line before coursor
+			String[] splitByNonLetter = beforeCourser.split("[\\W]"); //split the part before the coursor by non letters
+			// Go through the split parts before the coursor to find the start index of the word we are looking for
+			int startOfWord = 0;
+			for (int i = 0; i < splitByNonLetter.length-1; i++) {
+				if(splitByNonLetter[i].length() == 0){ // We add 1 when we are looking at a 0 length split, as this is a nonletter with no sorrounding letters
+					startOfWord += 1;
+				} else { // add the length of the split, and if it is not the last split and the next part has length >=1, also add 1 for the nonletter character
+					startOfWord += splitByNonLetter[i].length();
+					if( (i+1) < splitByNonLetter.length ){
+						if(splitByNonLetter[i+1].length() >=1){
+							startOfWord += 1;
 						}
 					}
 				}
-				String lineStartOfWord = correctLine.substring(startOfWord).trim();
-				if(lineStartOfWord.matches("^[\\w]+[\\W]+.*$")){
-					wordWeAreLookingFor = lineStartOfWord.split("[^\\w]")[0];
-				} else {
-					wordWeAreLookingFor = lineStartOfWord;
-				}
-				String fileName = request.getFirstChild( "filename" ).strValue();
-				parseResult = getModuleInspector( fileName, Optional.of( source ), includePaths, interpreter() );
+			}
+			String lineStartOfWord = correctLine.substring(startOfWord).trim(); // Get rest of the line, from where the word starts
+			if(lineStartOfWord.matches("^[\\w]+[\\W]+.*$")){ // if it matches a character or word followed by one or more non letters and 0 or more characters
+				wordWeAreLookingFor = lineStartOfWord.split("[^\\w]")[0]; // the first split contains the word
 			} else {
-				parseResult =
-					getModuleInspector( request.getFirstChild( "filename" ).strValue(), Optional.empty(), includePaths,
-						interpreter() );
-				wordWeAreLookingFor = "";
+				wordWeAreLookingFor = lineStartOfWord; //otherwise all of lineStartOfWord is the word
 			}
-			String importedPath = "";
-			String importedName = "";
+
+			//get the parseResult which contains the map of symbolTables
+			final SemanticVerifier parseResult = getModuleInspector( fileName, Optional.of( source ), includePaths, interpreter() );
+			
 			for( Map.Entry<URI, SymbolTable> pair : parseResult.symbolTables().entrySet()) {
-				for (ImportedSymbolInfo importedSymbol : pair.getValue().importedSymbolInfos()) {
-					if(wordWeAreLookingFor.contains(importedSymbol.name())){
-						importedName = importedSymbol.originalSymbolName();
-						if(importedSymbol.moduleSource().isPresent()){
-							importedPath = importedSymbol.moduleSource().get().uri().toString();
-						} else {
-							importedPath = pair.getKey().toString();
-						}
-						break;
-					}					
-				}
-			}
-			for( Map.Entry<URI, SymbolTable> pair : parseResult.symbolTables().entrySet()) {
-				ValueVector uri = result.getChildren("module");	
-				for (LocalSymbolInfo localSymbol : pair.getValue().localSymbols()) {
-					if(wordWeAreLookingFor.contains(localSymbol.name())){
-						Value module = Value.create(pair.getKey().toString());
-						Value context = Value.create();
-						context.getNewChild("startLine").setValue(localSymbol.context().startLine());
-						context.getNewChild("endLine").setValue(localSymbol.context().endLine());
-						context.getNewChild("startColumn").setValue(localSymbol.context().startColumn());
-						context.getNewChild("endColumn").setValue(localSymbol.context().endColumn());
-						module.getNewChild("context").deepCopy(context);
-						module.getNewChild("name").setValue(localSymbol.name());
-						uri.add(module);
-						return result;
-					} else if (!importedName.isEmpty() && !importedPath.isEmpty()){
-						if(importedName.equals(localSymbol.name()) && importedPath.equals(pair.getKey().toString())){
-							Value module = Value.create(importedPath);
+				if(pair.getKey().toString().contains(fileName)){ // get the symbolTables for the file the request comes from
+					ValueVector uri = result.getChildren("module");
+					for (ImportedSymbolInfo importedSymbol : pair.getValue().importedSymbolInfos()) { //check if the symbol is imported first
+						if(wordWeAreLookingFor.contains(importedSymbol.name())){
+							Value module = Value.create(importedSymbol.node().context().source().toString());
+							Value context = Value.create();
+							context.getNewChild("startLine").setValue(importedSymbol.node().context().startLine());
+							context.getNewChild("endLine").setValue(importedSymbol.node().context().endLine());
+							context.getNewChild("startColumn").setValue(importedSymbol.node().context().startColumn());
+							context.getNewChild("endColumn").setValue(importedSymbol.node().context().endColumn());
+							module.getNewChild("context").deepCopy(context);
+							module.getNewChild("name").setValue(importedSymbol.originalSymbolName());
+							uri.add(module);
+							return result;
+						}				
+					}
+					for (LocalSymbolInfo localSymbol : pair.getValue().localSymbols()) { // if the symbol is not imported, check the local symbols
+						if(wordWeAreLookingFor.contains(localSymbol.name())){
+							Value module = Value.create(localSymbol.context().source().toString());
 							Value context = Value.create();
 							context.getNewChild("startLine").setValue(localSymbol.context().startLine());
 							context.getNewChild("endLine").setValue(localSymbol.context().endLine());
 							context.getNewChild("startColumn").setValue(localSymbol.context().startColumn());
 							context.getNewChild("endColumn").setValue(localSymbol.context().endColumn());
 							module.getNewChild("context").deepCopy(context);
-							module.getNewChild("name").setValue(importedName);
+							module.getNewChild("name").setValue(localSymbol.name());
 							uri.add(module);
 							return result;
 						}
-					}				
+					}
 				}
 			}
 			return result;
-		} catch( CommandLineException | IOException ex) {
+		} catch( CommandLineException | IOException ex) { //Exceptions do not matter, as they are found by the fileinspector whenever the file is changed
 			System.out.println("CommandLine or IO Exception happened while inspecting module");
 		} catch( CodeCheckException ex ) {
 			System.out.println("CodeCheckException happened while inspecting module");
