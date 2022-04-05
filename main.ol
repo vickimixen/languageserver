@@ -42,8 +42,6 @@ service Main(params:Params) {
 			osc.didSave.alias = "textDocument/didSave"
 			osc.didClose.alias = "textDocument/didClose"
 			osc.completion.alias = "textDocument/completion"
-			osc.codeLens.alias = "textDocument/codeLens"
-			//osc.codeLensResolve.alias = "codeLens/resolve" //This does not work / is not called by vscode
 			osc.hover.alias = "textDocument/hover"
 			osc.documentSymbol.alias = "textDocument/documentSymbol"
 			osc.publishDiagnostics.alias = "textDocument/publishDiagnostics"
@@ -124,10 +122,6 @@ service Main(params:Params) {
 				//experimental;
 				workspaceSymbolProvider = true
 				renameProvider = true
-				//codeLensProvider works, but resolveCodelens is not called by vscode
-				codeLensProvider << {
-					resolveProvider = true
-				}
 			}
 		} ]
 

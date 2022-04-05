@@ -36,7 +36,6 @@ import jolie.lang.parse.context.ParsingContext;
 import jolie.lang.parse.module.ModuleException;
 import jolie.lang.parse.module.ImportedSymbolInfo;
 import jolie.lang.parse.module.LocalSymbolInfo;
-import jolie.lang.parse.module.SymbolTable;
 import jolie.lang.parse.util.Interfaces;
 import jolie.lang.parse.util.ParsingUtils;
 import jolie.lang.parse.util.ProgramInspector;
@@ -292,6 +291,7 @@ public class Inspector extends JavaService {
 			// Since the client only provides the file and the position in the file, 
 			// we have to figure out which word is at the position
 			String wordWeAreLookingFor = findWordWeAreLookingFor(currentFile, column, line, Optional.empty());
+			System.out.println("wordWeAreLookingFor: "+wordWeAreLookingFor);
 
 			//Get all modules in workspace
 			File rootPath = new File(rootUri);
@@ -306,7 +306,7 @@ public class Inspector extends JavaService {
 				String sourceOfWordWeAreLookingFor = Files.readString(currentFilePath.toPath()); // Read source code in as a string
 				final SemanticVerifier parseResult = getModuleInspector( currentFile, Optional.of( sourceOfWordWeAreLookingFor ), includePaths, interpreter() );
 				// make module object for the currentFile and its symbols
-				Value currentModule = Value.create(currentFile);
+				Value currentModule = Value.create(currentFilePath.toURI().normalize().toString());
 				ValueVector symbols = currentModule.getChildren("symbol");
 				// check through local symbols first, to determine if we can simply change it in the current file and all files importing from this
 				// or if we have to find the imported module and rename both in the imported module and all other files importing from this
@@ -316,7 +316,9 @@ public class Inspector extends JavaService {
 						// Create an entry in the result for this symbol
 						// Check if the context from the symbol actually points correctly to the word we are looking for,
 						// so we do not rename in the wrong place
+						System.out.println("before wordFromContext");
 						String wordFromContext = getWordFromContext(sourceOfWordWeAreLookingFor, localSymbol.context(), wordWeAreLookingFor);
+						System.out.println("wordFromContext: "+wordFromContext);
 						if(wordFromContext.equals(wordWeAreLookingFor)){ // the rename will happen in the correct place, so we create symbol object
 							Value symbol = buildSymbolResponse(localSymbol.context(), localSymbol.name());
 							symbols.add(symbol);
@@ -361,7 +363,7 @@ public class Inspector extends JavaService {
 								// so we do not rename in the wrong place
 								String wordFromContext = getWordFromContext(sourceOfWordWeAreLookingFor, currentFileImportedSymbol.context(), wordWeAreLookingFor);
 								if(wordFromContext.equals(wordWeAreLookingFor)){
-									Value symbol = buildSymbolResponse(currentFile, currentFileImportedSymbol.context(), currentFileImportedSymbol.name());
+									Value symbol = buildSymbolResponse(currentFileImportedSymbol.context(), currentFileImportedSymbol.name());
 									symbols.add(symbol);
 									modules.add(currentModule);
 								} else{
@@ -375,7 +377,7 @@ public class Inspector extends JavaService {
 								if(importedWordFromContext.equals(wordWeAreLookingFor)){		
 									Value module = Value.create(importedFile.toString());
 									ValueVector importedFileSymbols = module.getChildren("symbol");
-									Value symbol = buildSymbolResponse(importedFile.toString(), currentFileImportedSymbol.node().context(), currentFileImportedSymbol.name());
+									Value symbol = buildSymbolResponse(currentFileImportedSymbol.node().context(), currentFileImportedSymbol.name());
 									importedFileSymbols.add(symbol);
 									modules.add(module);
 								} else{
@@ -393,7 +395,7 @@ public class Inspector extends JavaService {
 										if(importedSymbol.name().equals(wordWeAreLookingFor) && importedSymbol.node().context().source().equals(importedFileURI.normalize())){
 											String wordFromContext1 = getWordFromContext(source, importedSymbol.node().context(), wordWeAreLookingFor);
 											if(wordFromContext1.equals(wordWeAreLookingFor)){
-												Value symbol = buildSymbolResponse(olfile.toString(), importedSymbol.node().context(), importedSymbol.name());
+												Value symbol = buildSymbolResponse(importedSymbol.node().context(), importedSymbol.name());
 												olfileSymbols.add(symbol);
 											} else{
 												throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+importedFile.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
@@ -456,50 +458,14 @@ public class Inspector extends JavaService {
 	}
 
 	private String getWordFromContext(String source, ParsingContext context, String wordWeAreLookingFor){
-		String[] lines = source.lines().toArray(String[]::new);
-		String lineString = lines[context.startLine()-1];
-		String wordFromContext = lineString.substring(context.startColumn(), context.startColumn() + wordWeAreLookingFor.length());
-		return wordFromContext;
-	}
-
-	/**
-	 * Used by languageserver/internal/text-document.ol CodeLens call (CodeLens is not yet finished)
-	 * @param request InspectionRequest
-	 * @return ModuleInspectionResponse  (TODO: make it a list of modules with a list of symbols, like workspaceModuleInspection and )
-	 */
-	@RequestResponse
-	public Value getModuleSymbols( Value request ) {
-		Value result = Value.create();
-		String[] includePaths =	request.getChildren( "includePaths" ).stream().map( Value::strValue ).toArray( String[]::new );
-		String fileName = request.getFirstChild( "filename" ).strValue();
-		String source = request.getFirstChild( "source" ).strValue();
-		ValueVector modules = result.getChildren("module");
 		try {
-			//get the parseResult which contains the map of symbolTables
-			final SemanticVerifier parseResult = getModuleInspector( fileName, Optional.of( source ), includePaths, interpreter() );
-			
-			for( Map.Entry<URI, SymbolTable> pair : parseResult.symbolTables().entrySet()) {
-				if(pair.getKey().toString().contains(fileName)){ // get the symbolTables for the file the request comes from
-					Value module = Value.create(fileName);
-					ValueVector symbol = module.getChildren("symbol");
-					for (ImportedSymbolInfo importedSymbol : pair.getValue().importedSymbolInfos()) { //check if the symbol is imported first
-						if(!importedSymbol.name().matches("^[A-Z]\\w*$")){
-							symbol.add(buildSymbolResponse(importedSymbol.context(), importedSymbol.name()));
-						}			
-					}
-					for (LocalSymbolInfo localSymbol : pair.getValue().localSymbols()) { // if the symbol is not imported, check the local symbols
-						if(!localSymbol.name().matches("^[A-Z]\\w*$")){
-							symbol.add(buildSymbolResponse(localSymbol.context(), localSymbol.name()));
-						}
-					}
-					modules.add(module);
-				}
-			}
-			return result;
-		} catch( Exception ex) { //Exceptions do not matter, as they are found by the fileinspector whenever the file is changed
-			System.out.println("Could not search for symbols. An exception happened while inspecting module.\n"+ex.getMessage());
+			String[] lines = source.lines().toArray(String[]::new);
+			String lineString = lines[context.startLine()-1];
+			String wordFromContext = lineString.substring(context.startColumn(), context.startColumn() + wordWeAreLookingFor.length());
+			return wordFromContext;	
+		} catch (IndexOutOfBoundsException e) { // if the line or column causes an IndexOutOfBoundsException then we cannot rename this symbol
+			return ""; // the empty string will cause an error by the caller
 		}
-		return result;
 	}
     
 	@RequestResponse

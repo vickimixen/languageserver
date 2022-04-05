@@ -826,27 +826,9 @@ type RenameRequest {
 		}
 	}
 } */
+
 //should be WorkspaceEditResponse
 type RenameResponse: undefined | void
-
-type CodeLensRequest {
-	textDocument: TextDocumentIdentifier
-	//workDoneToken?:
-	//partialResultToken?:
-}
-
-type CodeLensResponse: undefined | void
-/* type CodeLensPesponse {
-	_* {
-		range: Range
-		command?: Command
-		data?: any
-	}
-} */
-
-type CodeLensResolveRequest: undefined
-
-type CodeLensResolveResponse: undefined
 
 interface GeneralInterface {
   OneWay:
@@ -876,9 +858,7 @@ interface TextDocumentInterface {
     documentSymbol( DocumentSymbolParams )( DocumentSymbolResult ),
     signatureHelp( TextDocumentPositionParams )( SignatureHelpResponse ),
 	definition(TextDocumentPositionParams)(DefinitionResponse),
-	rename(RenameRequest)(RenameResponse),
-	codeLens(undefined)(CodeLensResponse),
-	codeLensResolve(CodeLensResolveRequest)(CodeLensResolveResponse)
+	rename(RenameRequest)(RenameResponse)
 }
 
 interface WorkspaceInterface {

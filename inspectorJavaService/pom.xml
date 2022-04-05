@@ -3,7 +3,7 @@
 <project>
     <modelVersion>4.0.0</modelVersion>
 
-	<groupId>joliex.inspector</groupId>
+	<groupId>inspector</groupId>
 	<artifactId>jolie-inspector</artifactId>
 	<version>0.1.0</version>
 
