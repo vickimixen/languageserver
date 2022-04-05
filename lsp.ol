@@ -6,6 +6,7 @@
 /*
 * @author Eros Fabrici
 */
+
 type InitializeParams {
   processId: int | void
   rootPath?: string | void
@@ -208,7 +209,9 @@ type ServerCapabilities {
 	  changeNotifications?: string | bool
 	}
   }
+  workspaceSymbolProvider?: bool
   experimental?: undefined
+  codeLensProvider?: CodeLensOptions
 }
 
 type ExecuteCommandOptions {
@@ -675,6 +678,18 @@ type DidChangeConfigurationParams {
 
 type WorkspaceSymbolParams {
   query: string
+  workDoneToken?: int | string
+  partialResultToken?: int | string
+}
+
+type WorkSpaceSymbolResponse {_*: SymbolInformation | WorkspaceSymbol}
+
+type WorkspaceSymbol {
+	name: string
+	kind: SymbolKind
+	tags?: undefined
+	location: Location | DocumentUri
+	containerName?: string
 }
 
 type SymbolInformation {
@@ -791,6 +806,48 @@ type DocumentData {
   text: string
 }
 
+type RenameRequest {
+	newName: string
+	textDocument {
+		uri: DocumentUri
+	}
+	position {
+		character: int
+		line: int
+	}
+}
+
+// https://microsoft.github.io/language-server-protocol/specifications/specification-3-17/#workspaceEdit
+// workspaceEdit
+/* type WorkspaceEditResponse {
+	changes? {
+		_uri*: DocumentUri {
+			_textEdit*: TextEdit
+		}
+	}
+} */
+//should be WorkspaceEditResponse
+type RenameResponse: undefined | void
+
+type CodeLensRequest {
+	textDocument: TextDocumentIdentifier
+	//workDoneToken?:
+	//partialResultToken?:
+}
+
+type CodeLensResponse: undefined | void
+/* type CodeLensPesponse {
+	_* {
+		range: Range
+		command?: Command
+		data?: any
+	}
+} */
+
+type CodeLensResolveRequest: undefined
+
+type CodeLensResolveResponse: undefined
+
 interface GeneralInterface {
   OneWay:
     initialized( InitializedParams ),
@@ -799,6 +856,10 @@ interface GeneralInterface {
   RequestResponse:
     initialize( InitializeParams )( InitializeResult ),
     shutdown( void )( void )
+}
+interface GlobalVariables {
+	RequestResponse:
+		getRootUri(void)(DocumentUri)
 }
 
 interface TextDocumentInterface {
@@ -814,7 +875,10 @@ interface TextDocumentInterface {
     hover( TextDocumentPositionParams )( HoverInformations ),
     documentSymbol( DocumentSymbolParams )( DocumentSymbolResult ),
     signatureHelp( TextDocumentPositionParams )( SignatureHelpResponse ),
-	definition(TextDocumentPositionParams)(DefinitionResponse)
+	definition(TextDocumentPositionParams)(DefinitionResponse),
+	rename(RenameRequest)(RenameResponse),
+	codeLens(undefined)(CodeLensResponse),
+	codeLensResolve(CodeLensResolveRequest)(CodeLensResolveResponse)
 }
 
 interface WorkspaceInterface {
@@ -823,7 +887,7 @@ interface WorkspaceInterface {
     didChangeWorkspaceFolders( DidChangeWorkspaceFoldersParams ),
     didChangeConfiguration( DidChangeConfigurationParams )
   RequestResponse:
-    symbol( WorkspaceSymbolParams )( undefined ),
+    symbol( WorkspaceSymbolParams )( WorkSpaceSymbolResponse ),
     executeCommand( ExecuteCommandParams )( ExecuteCommandResult )
 }
 
@@ -841,9 +905,17 @@ interface UtilsInterface {
     deleteDocument( DidCloseTextDocumentParams )
 }
 
+type CreationResponse {
+	filename: string
+	includePaths*: string
+	source: string
+}
+
 interface InspectionUtilsInterface {
     RequestResponse:
-        inspectDocument( DocumentData )(undefined)
+        inspectDocument( DocumentData )(undefined),
+		inspectDocumentReturnDiagnostics( DocumentData)( DiagnosticParams),
+		createMinimalInspectionRequest(DocumentData)(CreationResponse)
 }
 
 type CompletionImportSymbolRequest: any {

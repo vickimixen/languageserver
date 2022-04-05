@@ -144,14 +144,47 @@ type Position {
 }
 
 type ModuleInspectionResponse {
-	module*: string {
+	module?: string {
+		name: string 
 		context {
 			startLine: int
 			endLine: int
 			startColumn: int
 			endColumn: int
 		}
-		name: string
+		
+	}
+}
+
+type WorkspaceModulesInspectionRequest {
+	rootUri: string
+	includePaths*: string
+	symbol: string
+}
+
+type InspectionToRenameRequest {
+	newName: string
+	textDocument{
+		uri: string
+	}
+	position{
+		character:int
+		line: int
+	}
+	rootUri: string
+	includePaths*: string
+}
+
+type MoreSymbolsPerModule{
+	module*: string {
+		symbol*: string {
+			context {
+				startLine: int
+				endLine: int
+				startColumn: int
+				endColumn: int
+			}
+		}
 	}
 }
 
@@ -162,17 +195,24 @@ RequestResponse:
 		throws	CodeCheckException(CodeCheckExceptionType)
 						FileNotFoundException( WeakJavaExceptionType )
 						IOException( WeakJavaExceptionType ),
+	// not used at the moment
 	inspectPorts( InspectionRequest )( PortInspectionResponse )
 		throws	ParserException( WeakJavaExceptionType )
 						SemanticException( WeakJavaExceptionType )
 						FileNotFoundException( WeakJavaExceptionType )
 						IOException( WeakJavaExceptionType ),
+	//not used at the moment
 	inspectTypes( InspectionRequest )( TypesInspectionResponse )
 		throws	ParserException( WeakJavaExceptionType )
 						SemanticException( WeakJavaExceptionType )
 						FileNotFoundException( WeakJavaExceptionType )
 						IOException( WeakJavaExceptionType ),
-	inspectModule(ModuleInspectionRequest)(ModuleInspectionResponse)
+	inspectModule(ModuleInspectionRequest)(ModuleInspectionResponse),
+	inspectWorkspaceModules(WorkspaceModulesInspectionRequest)(MoreSymbolsPerModule),
+	inspectionToRename(InspectionToRenameRequest)(MoreSymbolsPerModule)
+		throws FaultException(WeakJavaExceptionType),
+	// used for codeLens
+	getModuleSymbols(InspectionRequest)(MoreSymbolsPerModule)
 }
 
 service Inspector {
@@ -182,6 +222,6 @@ service Inspector {
     }
 
     foreign java {
-        class: "joliex.inspector.Inspector"
+        class: "inspector.Inspector"
     }
 }
