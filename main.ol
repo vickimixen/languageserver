@@ -6,7 +6,7 @@ from .internal.workspace import Workspace
 from .internal.utils import Utils
 from .internal.inspection-utils import InspectionUtils
 from .internal.completionHelper import CompletionHelper
-from .lsp import GeneralInterface, ServerToClient
+from .lsp import GeneralInterface, ServerToClient, GlobalVariables
 
 type Params {
 	location: string
@@ -26,6 +26,7 @@ service Main(params:Params) {
 	embed Workspace as Workspace
 	embed InspectionUtils
 	embed CompletionHelper
+	embed StringUtils as StringUtils
 
 	inputPort Input {
 		location: params.location
@@ -41,12 +42,15 @@ service Main(params:Params) {
 			osc.didSave.alias = "textDocument/didSave"
 			osc.didClose.alias = "textDocument/didClose"
 			osc.completion.alias = "textDocument/completion"
+			osc.codeLens.alias = "textDocument/codeLens"
+			//osc.codeLensResolve.alias = "codeLens/resolve" //This does not work / is not called by vscode
 			osc.hover.alias = "textDocument/hover"
 			osc.documentSymbol.alias = "textDocument/documentSymbol"
 			osc.publishDiagnostics.alias = "textDocument/publishDiagnostics"
 			osc.publishDiagnostics.isNullable = true
 			osc.signatureHelp.alias = "textDocument/signatureHelp"
 			osc.definition.alias = "textDocument/definition"
+			osc.rename.alias = "textDocument/rename"
 			osc.didChangeWatchedFiles.alias = "workspace/didChangeWatchedFiles"
 			osc.didChangeWorkspaceFolders.alias = "workspace/didChangeWorkspaceFolders"
 			osc.didChangeConfiguration.alias = "workspace/didChangeConfiguration"
@@ -55,6 +59,12 @@ service Main(params:Params) {
 		}
 		interfaces: GeneralInterface
 		aggregates: TextDocument, Workspace
+	}
+
+	// Extra port for textdocument and workspace to get the root uri for when working on all files in the workspace
+	inputPort GlobalVar {
+		location: "local://GlobalVar"
+		interfaces: GlobalVariables
 	}
 
 
@@ -112,6 +122,12 @@ service Main(params:Params) {
 				documentSymbolProvider = false
 				referenceProvider = false
 				//experimental;
+				workspaceSymbolProvider = true
+				renameProvider = true
+				//codeLensProvider works, but resolveCodelens is not called by vscode
+				codeLensProvider << {
+					resolveProvider = true
+				}
 			}
 		} ]
 
@@ -142,5 +158,11 @@ service Main(params:Params) {
 			println@Console( "cancelRequest received ID: " + cancelReq.id )()
 			//TODO
 		}
+
+		// helper to get root uri of the workspace for workspace/symbol and textdocument/rename
+		// as this is not provided from the request to these functionalities
+		[getRootUri(request)(response){
+			response = global.rootUri
+		}]
 	}
 }

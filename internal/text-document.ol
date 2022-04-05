@@ -5,7 +5,7 @@ from file import File
 from exec import Exec
 from ..inspectorJavaService.inspector import Inspector
 
-from ..lsp import TextDocumentInterface, UtilsInterface, CompletionHelperInterface
+from ..lsp import TextDocumentInterface, UtilsInterface, CompletionHelperInterface, InspectionUtilsInterface, GlobalVariables
 
 constants {
 	INTEGER_MAX_VALUE = 2147483647,
@@ -64,6 +64,16 @@ service TextDocument {
 	outputPort CompletionHelper {
 		location: "local://CompletionHelper"
 		interfaces: CompletionHelperInterface
+	}
+
+	outputPort InspectionUtils {
+		location: "local://InspectionUtils"
+		interfaces: InspectionUtilsInterface
+	}
+
+	outputPort GlobalVar{
+		location: "local://GlobalVar"
+		interfaces: GlobalVariables
 	}
 
 	init {
@@ -132,9 +142,9 @@ service TextDocument {
 
 		/*
 		* RR sent sent from the client when requesting a completion
-		* works for anything callable
-		* @Request: CompletionParams, see types/lsp.iol
-		* @Response: CompletionResult, see types/lsp.iol
+		* works for anything callable and imports
+		* @Request: CompletionParams, see lsp.ol
+		* @Response: CompletionResult, see lsp.ol
 		*/
 		[ completion( completionParams )( completionRes ) {
 			println@Console( "Completion Req Received" )()
@@ -147,51 +157,56 @@ service TextDocument {
 			}
 
 			getDocument@Utils( txtDocUri )( document )
-			//character that triggered the completion (@)
-			//might be not defined
 
-			
+			// Bools for checking whether completion was found
 			portFound = false
 			keywordFound = false
 			importModuleFound = false
 			importSymbolFound = false
 
 			program -> document.jolieProgram
+
+			// Check if the line from the completion request is part of an import statement or not
 			codeLine = document.lines[position.line]
 			trim@StringUtils( codeLine )( codeLineTrimmed )
-			// from something import random
+			// try to match the line with "from something import random"
 			match@StringUtils(codeLineTrimmed {regex="^from\\s([\\.\\w]+)\\simport\\s(\\w+)$"})(matchResponseImportSymbol)
-			// from something
+			// try to match the line with "from something"
 			match@StringUtils(codeLineTrimmed {regex = "^from\\s([\\.\\w]+)$"})(matchResponseImportModule)
-			if(matchResponseImportSymbol == 1){
+			if(matchResponseImportSymbol == 1){ // line matches "from something import random"
+				// call helperservice
 				completionImportSymbol@CompletionHelper(
 					{txtDocUri = txtDocUri, regexMatch << matchResponseImportSymbol.group})(helperResponse)
 				if(is_defined(helperResponse.result)){
 					importSymbolFound = true
-				}
-				for ( name in helperResponse.result){
-					completionItem << {
-						label = name
-						insertTextFormat = 2
-						insertText = name
+					// create the completion response
+					for ( name in helperResponse.result){
+						completionItem << {
+							label = name
+							insertTextFormat = 2
+							insertText = name
+						}
+						completionRes.items[#completionRes.items] << completionItem
 					}
-					completionRes.items[#completionRes.items] << completionItem
 				}
-			} else if(matchResponseImportModule == 1){
+			} else if(matchResponseImportModule == 1){ // line matchen "from something"
+				// call helper service
 				completionImportModule@CompletionHelper(
 					{ regexMatch << matchResponseImportModule.group, txtDocUri = txtDocUri } )(helperResponse)
 				if(is_defined(helperResponse.result)){
 					importModuleFound = true
-				}
-				for ( name in helperResponse.result){
-					completionItem << {
-						label = name
-						insertTextFormat = 2
-						insertText = name
+					// create completion response
+					for ( name in helperResponse.result){
+						completionItem << {
+							label = name
+							insertTextFormat = 2
+							insertText = name
+						}
+						completionRes.items[#completionRes.items] << completionItem
 					}
-					completionRes.items[#completionRes.items] << completionItem
 				}
-			}else {
+			}else { // if none of the regex match, it is either an operation or a keyword
+				// call helper service to see if the completion is for an operation
 				completionOperation@CompletionHelper({jolieProgram << program, codeLine = codeLineTrimmed})(helperResponse)
 				if(is_defined(helperResponse.result)){
 					portFound = true
@@ -199,7 +214,7 @@ service TextDocument {
 						completionRes.items[#completionRes.items] << item
 					}
 				}
-
+				// call helper service to see if the completion is for a keyword
 				completionKeywords@CompletionHelper({codeLine = codeLineTrimmed})(keywordResponse)
 				if(is_defined(keywordResponse.result)){
 					keywordFound = true
@@ -208,6 +223,7 @@ service TextDocument {
 					}
 				}
 			}
+			// if no completions were found, return a void response, such that the extension simply does not show any suggestions
 			if ( !foundPort && !keywordFound && !importModuleFound && !importSymbolFound) {
 				completionRes.items = void
 			}
@@ -216,8 +232,8 @@ service TextDocument {
 
 		/*
 		* RR sent sent from the client when requesting a hover
-		* @Request: TextDocumentPositionParams, see types.iol
-		* @Response: HoverResult, see types.iol
+		* @Request: TextDocumentPositionParams, see lsp.ol
+		* @Response: HoverResult, see lsp.ol
 		*/
 		[ hover( hoverReq )( hoverResp ) {
 			found = false
@@ -338,23 +354,19 @@ service TextDocument {
 			trim@StringUtils( line )( trimmedLine )
 			trimmedLine.regex = "([A-z]+)@([A-z]+)"
 			find@StringUtils( trimmedLine )( matchRes )
-			valueToPrettyString@StringUtils( matchRes )( s )
-			println@Console( s )(  )
 
 			if ( matchRes == 0 ) {
 				trimmedLine.regex = "\\[?([A-z]+)"
 				find@StringUtils( trimmedLine )( matchRes )
-				valueToPrettyString@StringUtils( matchRes )( s )
-				println@Console( s )(  )
 				if ( matchRes == 1 ) {
-				opName -> matchRes.group[1]
-				portName -> matchRes.group[2]
+					opName -> matchRes.group[1]
+					portName -> matchRes.group[2]
 
-				if ( is_defined( portName ) ) {
-					label = opName
-				} else {
-					label = opName + "@" + portName
-				}
+					if ( is_defined( portName ) ) {
+						label = opName
+					} else {
+						label = opName + "@" + portName
+					}
 				}
 			} else {
 				opName -> matchRes.group[1]
@@ -367,25 +379,23 @@ service TextDocument {
 				for ( port in program ) {
 
 					if ( is_defined( portName ) ) {
-					ifGuard = ( port.name == portName ) && is_defined( port.interface )
-					foundSomething = true
+						ifGuard = ( port.name == portName ) && is_defined( port.interface )
+						foundSomething = true
 					} else {
-					ifGuard = is_defined( port.interface )
+						ifGuard = is_defined( port.interface )
 					}
 
 					if ( ifGuard ) {
-					for ( iFace in port.interface ) {
-						if ( op.name == opName ) {
-						foundSomething = true
-						opRequestType = op.requestType.name
+						for ( iFace in port.interface ) {
+							if ( op.name == opName ) {
+								foundSomething = true
+								opRequestType = op.requestType.name
 
-						if ( is_defined( op.responseType ) ) {
-							opResponseType = op.responseType.name
+								if ( is_defined( op.responseType ) ) {
+									opResponseType = op.responseType.name
+								}
+							}
 						}
-
-
-						}
-					}
 					}
 				}
 
@@ -400,13 +410,12 @@ service TextDocument {
 					}
 					}
 				}
-				}
+			}
+		} ]
 
-				// valueToPrettyString@StringUtils( signatureHelp )( s )
-				// println@Console( s )(  )
-			} ]
-
-		[ documentSymbol( request )( response ) // {
+		[ documentSymbol( request )( response ) {
+			println@Console("documentSymbol received")()
+		} // {
 			// TODO: WIP
 			// getDocument@Utils( request.textDocument.uri )( document )
 			// i = 0
@@ -421,59 +430,210 @@ service TextDocument {
 		// }
 		]
 
+		/* Go to definition
+		* (might not always go to the correct place, if the line and column number in the symbol table is not correct)
+		* @Request: TextDocumentPositionParams in lsp.ol
+		* @Response: DefinitionResponse in lsp.ol
+		*/
 		[ definition(request)(response){
+			// receives the uri and the position
+			println@Console("Definition request received")()
 			response = void
-			install( FileNotFound => nullProcess)
-			install( IOException => nullProcess)
-			// Get the text of the file, which we get the definition request from
-			split@StringUtils(request.textDocument.uri {regex = "///"})(splitResponse)
-			readFile@File({filename = splitResponse.result[1]})(readFileResponse)
-			documentData << {uri = request.textDocument.uri, text = readFileResponse}
+			scope(inspection){
+				// Do nothing in case of error, as a definition is simply not found
+				// and the extension provides this message by looking at the void response
+				install( default => 
+					valueToPrettyString@StringUtils(inspection.default)(prettyDefault)
+					println@Console("default error happened while looking for definition:\n"+prettyDefault)()
+				)
+				// Get the text of the file, which we get the definition request from
+				split@StringUtils(request.textDocument.uri {regex = "///"})(splitResponse)
+				readFile@File({filename = splitResponse.result[1]})(readFileResponse)
+				documentData << {uri = request.textDocument.uri, text = readFileResponse}
 
-			// Get the symboltabel by inspecting the file
-			// Following code matches code in inspection-utils.ol
-			// TODO : fix these:
-			// - remove the directories of this LSP
-			// - add the directory of the open file.
-			getenv@Runtime( "JOLIE_HOME" )( jHome )
-			getFileSeparator@File()( fs )
-			getParentPath@File( documentData.uri )( documentPath )
-			regexRequest << documentData.uri
-			regexRequest.regex =  "^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?"
-			find@StringUtils( regexRequest )( regexResponse )
-			inspectionReq << {
-				filename = regexResponse.group[5]
-				source = documentData.text
-				includePaths[0] = jHome + fs + "include"
-				includePaths[1] = documentPath
-				position << request.position
-			}
-			replacementRequest = regexResponse.group[5]
-			replacementRequest.regex = "%20"
-			replacementRequest.replacement = " "
-			replaceAll@StringUtils(replacementRequest)(inspectionReq.filename)
-			
-			replacementRequest = inspectionReq.includePaths[1]
-			replaceAll@StringUtils(replacementRequest)(inspectionReq.includePaths[1])
-			inspectModule@Inspector(inspectionReq)(inspectResponse)
+				createMinimalInspectionRequest@InspectionUtils(documentData)(inspectionReq)
+				//add the position to the minimal inspection request, as the inspectModule requires it
+				inspectionReq.position << request.position
+				inspectModule@Inspector(inspectionReq)(inspectResponse)
 
-			for(i = 0, i < #inspectResponse.module, i++){
-				contains@StringUtils(inspectResponse.module[i] {substring = inspectionReq.filename})(containsRes)
-				response << {
-					uri = inspectResponse.module[i]
-					range << {
-						start <<  {
-							line = inspectResponse.module[i].context.startLine -1
-							character = inspectResponse.module[i].context.startColumn
-						}
-						end << {
-							line = inspectResponse.module[i].context.endLine -1
-							character = inspectResponse.module[i].context.endColumn
+				// if a definition was found, build a response
+				isResponseDefined = is_defined(inspectResponse.module)
+				if(isResponseDefined){
+					response << {
+						uri = inspectResponse.module
+						range << {
+							start <<  {
+								line = inspectResponse.module.context.startLine -1
+								character = inspectResponse.module.context.startColumn
+							}
+							end << {
+								line = inspectResponse.module.context.endLine -1
+								character = inspectResponse.module.context.endColumn
+							}
 						}
 					}
 				}
-				
 			}
 		}]
+
+		/* Can be triggered by F2
+		* (TODO: the symboltable in the compiler needs all instances of a symbol to be able to rename,
+		* and each instance in the table needs the correct line and column number to rename correctly)
+		* if rename cannot be done correctly, the function does not do any renaming
+		* @Request: RenameRequest from lsp.ol
+		* @Response: RenameResponse from lsp.ol
+		*/
+		[rename(request)(response){
+			println@Console("Inside rename")()
+			response = void
+			
+			// get root path of the workspace
+			getRootUri@GlobalVar()(request.rootUri)
+
+			// Fix rooturi and documenturi to not contain file:///
+			split@StringUtils(request.rootUri {regex = "///"})(splitResult)
+			request.rootUri = splitResult.result[1]
+			split@StringUtils(request.textDocument.uri {regex = "///"})(splitResponse)
+			request.textDocument.uri = splitResponse.result[1]
+
+			//Create includePaths
+			getenv@Runtime( "JOLIE_HOME" )( jHome )
+			getFileSeparator@File()( fs )
+			request.includePaths[0] = jHome + fs + "include"
+			request.includePaths[1] = request.textDocument.uri
+			
+			scope(renameInspection){
+				// Catch errors from inspectionToRename in case the rename is not possible
+				install( default =>
+					stderr << renameInspection.default
+					println@Console("error: "+renameInspection.default)()
+				)
+				// Get all places the symbol needs to be renamed, this is still not an optimal function,
+				// as all places the symbol occurs cannot be found, and the line and columns of all symbols might not be correct
+				inspectionToRename@Inspector(request)(inspectionResponse)
+
+				valueToPrettyString@StringUtils(inspectionResponse)(prettyInspResp)
+				println@Console("inspectionResponse for rename:\n"+prettyInspResp)()
+
+				// TODO: make sure ._[0] gets a loop for when multiple renames become available for the same file
+				// right now each symbol only exists one time in the symboltable and all places to rename cannot be found
+				/* for(i = 0, i < #inspectionResponse.module, i++){
+					println@Console("inspectionResponse.module: "+inspectionResponse.module[i])()
+					response.changes.(inspectionResponse.module[i])._[0] << {
+							range << {
+								start << {
+									line = inspectionResponse.module[i].context.startLine -1
+									character = inspectionResponse.module[i].context.startColumn
+								}
+								end << {
+									line = inspectionResponse.module[i].context.endLine -1
+									character = inspectionResponse.module[i].context.endColumn
+								}
+							}
+							newText = request.newName
+					}
+				} */
+			}
+		}]
+		/*
+		* Partially works, supplies codelenses, and can run commands for codelenses
+		* resolveCodelens does not work, as the function does not get called. Meaning the commands that need the codelenses are
+		* useless, as they are not provided with the position or the relevant data for whatever command one wanted to run
+		*/
+		[codeLens(request)(response){
+			valueToPrettyString@StringUtils(request)(prettyRequest)
+			println@Console("!!!!!!!!!!!!!!!!!!!!!!!codelens request:\n"+prettyRequest)()
+
+			// remove file:/// from uri to read file
+			split@StringUtils(request.textDocument.uri {regex = "///"})(splitResult)
+			readFile@File({filename = splitResult.result[1]})(inspectDoc.text)
+			createMinimalInspectionRequest@InspectionUtils({uri = request.textDocument.uri, text = inspectDoc.text})(getModuleSymbolsRequest)
+			getModuleSymbols@Inspector(getModuleSymbolsRequest)(moduleSymbols)
+			valueToPrettyString@StringUtils(moduleSymbols)(prettyModuleSymbols)
+			println@Console("moduleSymbols :\n"+prettyModuleSymbols)()
+			response = void
+		}]
+			/*response = void
+			inspectDoc << {
+				uri = request.textDocument.uri
+			}
+			// remove file:/// from uri to read file
+			split@StringUtils(request.textDocument.uri {regex = "///"})(splitResult)
+			readFile@File({filename = splitResult.result[1]})(inspectDoc.text)
+			
+			// inspect document to receive possible errors
+			inspectDocumentReturnDiagnostics@InspectionUtils(inspectDoc)(inspectDocumentResponse)
+
+			valueToPrettyString@StringUtils(inspectDocumentResponse)(prettyInspDocResp)
+			println@Console("inspectDocumentResponse:\n"+prettyInspDocResp)()
+
+			// get error diagnostics from inspection of document if exists
+			// turn into codeLens' with corresponding command
+			if(is_defined(inspectDocumentResponse.diagnostics)){
+				split@StringUtils(inspectDocumentResponse.diagnostics.message {regex = "\n"})(splitRes)
+				response._[0] << {
+					range << inspectDocumentResponse.diagnostics.range
+					command << {
+						title = "executeHoverProvider"
+						command = "vscode-jolie.executeHoverProvider"
+						arguments << {
+							uri = request.textDocument.uri
+							position << inspectDocumentResponse.diagnostics.range
+						}
+					}
+					data = inspectDocumentResponse.diagnostics.message
+				}
+			} else{
+				// if no diagnostics were found, get symbols with wrong naming convention
+				// and create codeLens' with coresponding command
+				createMinimalInspectionRequest@InspectionUtils({uri = request.textDocument.uri, text = inspectDoc.text})(getModuleSymbolsRequest)
+				getModuleSymbols@Inspector(getModuleSymbolsRequest)(moduleSymbols)
+				valueToPrettyString@StringUtils(moduleSymbols)(prettyModuleSymbols)
+				println@Console("moduleSymbols :\n"+prettyModuleSymbols)()
+				for(i = 0, i < #moduleSymbols.module, i++){
+					valueToPrettyString@StringUtils(moduleSymbols.module[i])(prettyModule)
+					println@Console("module :\n"+prettyModule)()
+					response._[i] << {
+						range << {
+							start << {
+								line = moduleSymbols.module[i].context.startLine -1
+								character = moduleSymbols.module[i].context.startColumn
+							}
+							end << {
+								line = moduleSymbols.module[i].context.endLine -1
+								character = moduleSymbols.module[i].context.endColumn
+							}
+						}
+						command << {
+							title = "nameConvention"
+							command = "vscode-jolie.nameConvention"
+							arguments << {
+								uri = request.textDocument.uri
+								position << {
+									start << {
+										line = moduleSymbols.module[i].context.startLine -1
+										character = moduleSymbols.module[i].context.startColumn
+									}
+									end << {
+										line = moduleSymbols.module[i].context.endLine -1
+										character = moduleSymbols.module[i].context.endColumn
+									}
+								}
+							}
+						}
+						data = moduleSymbols.module[i].name
+					}
+				}
+			}
+
+			valueToPrettyString@StringUtils(response)(prettyResp)
+			println@Console("final response:\n"+prettyResp)()
+
+		}]
+
+		// This is never called from vscode for some reason
+		[codeLensResolve()(){
+			println@Console("in codelensResolve")()
+		}]*/
 	}
 }

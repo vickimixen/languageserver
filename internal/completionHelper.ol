@@ -117,6 +117,11 @@ service CompletionHelper {
     }
 
     main{
+		/*
+		* Tries to find a possible completion as if the request is for an operation
+		* @Request CompletionOperationRequest from lsp.ol
+		* @Response CompletionOperationResponse from lsp.ol
+		*/
         [completionOperation(request)(response){
             for ( port in request.jolieProgram.outputPorts ) {
 					for ( iFace in port.interfaces ) {
@@ -173,6 +178,11 @@ service CompletionHelper {
 				}
         }]
 
+		/*
+		* Tries to find a possible completion as if the request is for a keyword
+		* @Request CompletionKeywordRequest from lsp.ol
+		* @Response CompletionKeywordResponse from lsp.ol
+		*/
 		[completionKeywords(request)(response){
             //loop for completing reservedWords completion
             //for (kewyword in global.keywordSnippets.snippet)
@@ -195,12 +205,24 @@ service CompletionHelper {
             }
         }]
 
+		/*
+		* Completion for import module
+		* @Request CompletionImportModuleRequest from lsp.ol
+		* @Response CompletionImportModuleResponse from lsp.ol
+		*/
 		[completionImportModule(request)(response){
+			// calls helper function from java to inspect path from the import module
             inspectPackagePath@PathsInJolie({joliePackagePath = request.regexMatch[1], sourcePath = request.txtDocUri })(inspectResponse)
             response.result << inspectResponse.possiblePackages
         }]
 
+		/*
+		* Completion for import symbol
+		* @Request CompletionImportSymbolRequest from lsp.ol
+		* @Response CompletionImportSymbolResponse from lsp.ol
+		*/
 		[completionImportSymbol(request)(response){
+			// calls helper function from java to inspect the symbol
             inspectSymbol@PathsInJolie({packagePath = request.regexMatch[1], symbol = request.regexMatch[2], sourcePath = request.txtDocUri })(inspectResponse)
             response.result << inspectResponse.possibleSymbols
         }]
