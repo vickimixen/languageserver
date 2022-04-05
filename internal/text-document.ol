@@ -477,8 +477,6 @@ service TextDocument {
 		}]
 
 		/* Can be triggered by F2
-		* (TODO: the symboltable in the compiler needs all instances of a symbol to be able to rename,
-		* and each instance in the table needs the correct line and column number to rename correctly)
 		* if rename cannot be done correctly, the function does not do any renaming
 		* @Request: RenameRequest from lsp.ol
 		* @Response: RenameResponse from lsp.ol
@@ -512,128 +510,26 @@ service TextDocument {
 				// as all places the symbol occurs cannot be found, and the line and columns of all symbols might not be correct
 				inspectionToRename@Inspector(request)(inspectionResponse)
 
-				valueToPrettyString@StringUtils(inspectionResponse)(prettyInspResp)
-				println@Console("inspectionResponse for rename:\n"+prettyInspResp)()
-
-				// TODO: make sure ._[0] gets a loop for when multiple renames become available for the same file
 				// right now each symbol only exists one time in the symboltable and all places to rename cannot be found
-				/* for(i = 0, i < #inspectionResponse.module, i++){
-					println@Console("inspectionResponse.module: "+inspectionResponse.module[i])()
-					response.changes.(inspectionResponse.module[i])._[0] << {
-							range << {
-								start << {
-									line = inspectionResponse.module[i].context.startLine -1
-									character = inspectionResponse.module[i].context.startColumn
-								}
-								end << {
-									line = inspectionResponse.module[i].context.endLine -1
-									character = inspectionResponse.module[i].context.endColumn
-								}
-							}
-							newText = request.newName
-					}
-				} */
-			}
-		}]
-		/*
-		* Partially works, supplies codelenses, and can run commands for codelenses
-		* resolveCodelens does not work, as the function does not get called. Meaning the commands that need the codelenses are
-		* useless, as they are not provided with the position or the relevant data for whatever command one wanted to run
-		*/
-		[codeLens(request)(response){
-			valueToPrettyString@StringUtils(request)(prettyRequest)
-			println@Console("!!!!!!!!!!!!!!!!!!!!!!!codelens request:\n"+prettyRequest)()
-
-			// remove file:/// from uri to read file
-			split@StringUtils(request.textDocument.uri {regex = "///"})(splitResult)
-			readFile@File({filename = splitResult.result[1]})(inspectDoc.text)
-			createMinimalInspectionRequest@InspectionUtils({uri = request.textDocument.uri, text = inspectDoc.text})(getModuleSymbolsRequest)
-			getModuleSymbols@Inspector(getModuleSymbolsRequest)(moduleSymbols)
-			valueToPrettyString@StringUtils(moduleSymbols)(prettyModuleSymbols)
-			println@Console("moduleSymbols :\n"+prettyModuleSymbols)()
-			response = void
-		}]
-			/*response = void
-			inspectDoc << {
-				uri = request.textDocument.uri
-			}
-			// remove file:/// from uri to read file
-			split@StringUtils(request.textDocument.uri {regex = "///"})(splitResult)
-			readFile@File({filename = splitResult.result[1]})(inspectDoc.text)
-			
-			// inspect document to receive possible errors
-			inspectDocumentReturnDiagnostics@InspectionUtils(inspectDoc)(inspectDocumentResponse)
-
-			valueToPrettyString@StringUtils(inspectDocumentResponse)(prettyInspDocResp)
-			println@Console("inspectDocumentResponse:\n"+prettyInspDocResp)()
-
-			// get error diagnostics from inspection of document if exists
-			// turn into codeLens' with corresponding command
-			if(is_defined(inspectDocumentResponse.diagnostics)){
-				split@StringUtils(inspectDocumentResponse.diagnostics.message {regex = "\n"})(splitRes)
-				response._[0] << {
-					range << inspectDocumentResponse.diagnostics.range
-					command << {
-						title = "executeHoverProvider"
-						command = "vscode-jolie.executeHoverProvider"
-						arguments << {
-							uri = request.textDocument.uri
-							position << inspectDocumentResponse.diagnostics.range
-						}
-					}
-					data = inspectDocumentResponse.diagnostics.message
-				}
-			} else{
-				// if no diagnostics were found, get symbols with wrong naming convention
-				// and create codeLens' with coresponding command
-				createMinimalInspectionRequest@InspectionUtils({uri = request.textDocument.uri, text = inspectDoc.text})(getModuleSymbolsRequest)
-				getModuleSymbols@Inspector(getModuleSymbolsRequest)(moduleSymbols)
-				valueToPrettyString@StringUtils(moduleSymbols)(prettyModuleSymbols)
-				println@Console("moduleSymbols :\n"+prettyModuleSymbols)()
-				for(i = 0, i < #moduleSymbols.module, i++){
-					valueToPrettyString@StringUtils(moduleSymbols.module[i])(prettyModule)
-					println@Console("module :\n"+prettyModule)()
-					response._[i] << {
-						range << {
-							start << {
-								line = moduleSymbols.module[i].context.startLine -1
-								character = moduleSymbols.module[i].context.startColumn
-							}
-							end << {
-								line = moduleSymbols.module[i].context.endLine -1
-								character = moduleSymbols.module[i].context.endColumn
-							}
-						}
-						command << {
-							title = "nameConvention"
-							command = "vscode-jolie.nameConvention"
-							arguments << {
-								uri = request.textDocument.uri
-								position << {
+				for(i = 0, i < #inspectionResponse.module, i++){
+					for(j = 0, j < #inspectionResponse.module[i].symbol, j++){
+						println@Console("inspectionResponse.module: "+inspectionResponse.module[i])()
+						response.changes.(inspectionResponse.module[i])._[j] << {
+								range << {
 									start << {
-										line = moduleSymbols.module[i].context.startLine -1
-										character = moduleSymbols.module[i].context.startColumn
+										line = inspectionResponse.module[i].symbol[j].context.startLine -1
+										character = inspectionResponse.module[i].symbol[j].context.startColumn
 									}
 									end << {
-										line = moduleSymbols.module[i].context.endLine -1
-										character = moduleSymbols.module[i].context.endColumn
+										line = inspectionResponse.module[i].symbol[j].context.endLine -1
+										character = inspectionResponse.module[i].symbol[j].context.endColumn
 									}
 								}
-							}
+								newText = request.newName
 						}
-						data = moduleSymbols.module[i].name
 					}
 				}
 			}
-
-			valueToPrettyString@StringUtils(response)(prettyResp)
-			println@Console("final response:\n"+prettyResp)()
-
 		}]
-
-		// This is never called from vscode for some reason
-		[codeLensResolve()(){
-			println@Console("in codelensResolve")()
-		}]*/
 	}
 }
