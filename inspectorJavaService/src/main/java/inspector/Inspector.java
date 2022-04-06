@@ -214,10 +214,13 @@ public class Inspector extends JavaService {
 	 * Is used in languageserver/internal/workspace.ol symbol call
 	 * @param request WorkspaceModulesInspectionRequest: list of includePaths, rootUri as a string, symbol name as a string
 	 * @return MoreSymbolsPerModule: list of modules, each containing a list symbols with a name and a context
+	 * TODO: When the symboltables contain all occurences of the same symbol in the same module, we need to return those as well
 	 */
 	@RequestResponse
 	public Value inspectWorkspaceModules( Value request ) {
+		// Create return Value
 		Value result = Value.create();
+		// Get request information
 		String[] includePaths =	request.getChildren( "includePaths" ).stream().map( Value::strValue ).toArray( String[]::new );
 		String rootUri = request.getFirstChild( "rootUri" ).strValue();
 		String wordWeAreLookingFor = request.getFirstChild("symbol").strValue();
@@ -259,12 +262,8 @@ public class Inspector extends JavaService {
 				}
 			}
 			return result;
-		} catch( Exception ex) { // An exception happened while reading or opening files in the workspace
-			if(!ex.getMessage().contains("Could not search for symbol")){
-				System.out.println("Could not search for symbol '"+wordWeAreLookingFor+"'. An exception happened while reading files in the workspace.\n"+ex.getMessage());
-			} else { // The exceptions comes from the inner try-catch statement
-				System.out.println(ex.getMessage());
-			}
+		} catch( IOException ex) { // An exception happened while reading or opening files in the workspace
+			System.out.println("Could not search for symbol '"+wordWeAreLookingFor+"'. An exception happened while reading files in the workspace.\n"+ex.getMessage());
 		}
 		return result;
 	}
@@ -274,24 +273,24 @@ public class Inspector extends JavaService {
 	 * @param request InspectionToRenameRequest in inspector.ol
 	 * @return MoreSymbolsPerModule in inspector.ol
 	 * @throws FaultException if any exception occurs all renaming is abandoned, as any errors or problems could lead to wrong renaming
-	 * TODO: return a list of all the occourences in all modules to do complete renaming (same problem as in workspaceModuleInspection) when symboltables contains all occurrences
+	 * TODO: return a list of all the occourences in all modules to do complete renaming (same problem as in workspaceModuleInspection) when symboltables contain all occurrences
 	 */
 	@RequestResponse
 	public Value inspectionToRename(Value request) throws FaultException {
 		System.out.println("Inside inspectionToRename");
+		// Get information from request
 		String currentFile = request.getFirstChild("textDocument").getFirstChild("uri").strValue();
-		//String newName = request.getFirstChild("newName").strValue();
 		int column = request.getFirstChild("position").getFirstChild("character").intValue();
 		int line = request.getFirstChild("position").getFirstChild("line").intValue();
 		String rootUri = request.getFirstChild("rootUri").strValue();
 		String[] includePaths =	request.getChildren( "includePaths" ).stream().map( Value::strValue ).toArray( String[]::new );
+		// Create return Value
 		Value result = Value.create();
 
 		try {
 			// Since the client only provides the file and the position in the file, 
 			// we have to figure out which word is at the position
 			String wordWeAreLookingFor = findWordWeAreLookingFor(currentFile, column, line, Optional.empty());
-			System.out.println("wordWeAreLookingFor: "+wordWeAreLookingFor);
 
 			//Get all modules in workspace
 			File rootPath = new File(rootUri);
@@ -316,9 +315,7 @@ public class Inspector extends JavaService {
 						// Create an entry in the result for this symbol
 						// Check if the context from the symbol actually points correctly to the word we are looking for,
 						// so we do not rename in the wrong place
-						System.out.println("before wordFromContext");
 						String wordFromContext = getWordFromContext(sourceOfWordWeAreLookingFor, localSymbol.context(), wordWeAreLookingFor);
-						System.out.println("wordFromContext: "+wordFromContext);
 						if(wordFromContext.equals(wordWeAreLookingFor)){ // the rename will happen in the correct place, so we create symbol object
 							Value symbol = buildSymbolResponse(localSymbol.context(), localSymbol.name());
 							symbols.add(symbol);
@@ -421,13 +418,24 @@ public class Inspector extends JavaService {
 		}
 	}
 
+	/**
+	 * Some calls from the client only provide the position in the current file
+	 * and therefore we need to manually determine what the word we are looking for is
+	 * @param currentFile
+	 * @param column
+	 * @param line
+	 * @param optinalSource
+	 * @return
+	 * @throws IOException
+	 */
 	private String findWordWeAreLookingFor(String currentFile, int column, int line, Optional<String> optinalSource) throws IOException{
 		String wordWeAreLookingFor;
+		// Get the source code of the file
 		File currentFilePath = new File(currentFile);
 		String sourceOfWordWeAreLookingFor;
-		if(optinalSource.isPresent()){
+		if(optinalSource.isPresent()){ // the source code has already been read and is provided by the caller
 			sourceOfWordWeAreLookingFor = optinalSource.get();
-		} else {
+		} else { // the source code is not provided, read it in
 			sourceOfWordWeAreLookingFor = Files.readString(currentFilePath.toPath()); // Read source code in as a string
 		}
 		String[] codeLines = sourceOfWordWeAreLookingFor.lines().toArray(String[]::new); //Split source into lines
@@ -457,10 +465,19 @@ public class Inspector extends JavaService {
 		return wordWeAreLookingFor;
 	}
 
+	/**
+	 * Used for checking if a symbol we are looking for matches the word we find
+	 * by using the symbol context to look at the source by the startcolumn and startline
+	 * @param source
+	 * @param context
+	 * @param wordWeAreLookingFor
+	 * @return
+	 */
 	private String getWordFromContext(String source, ParsingContext context, String wordWeAreLookingFor){
 		try {
-			String[] lines = source.lines().toArray(String[]::new);
-			String lineString = lines[context.startLine()-1];
+			String[] lines = source.lines().toArray(String[]::new); // split the source into lines
+			String lineString = lines[context.startLine()-1]; // get the line of source
+			// get the part of text that starts at the column and ends column+length(wordWeAreLookingFor)
 			String wordFromContext = lineString.substring(context.startColumn(), context.startColumn() + wordWeAreLookingFor.length());
 			return wordFromContext;	
 		} catch (IndexOutOfBoundsException e) { // if the line or column causes an IndexOutOfBoundsException then we cannot rename this symbol
