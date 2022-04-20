@@ -106,11 +106,11 @@ service Workspace {
 							uri = workspaceModulesResponse.module[i]
 							range << {
 								start << {
-									line = workspaceModulesResponse.module[i].symbol[j].context.startLine -1
+									line = workspaceModulesResponse.module[i].symbol[j].context.startLine
 									character = workspaceModulesResponse.module[i].symbol[j].context.startColumn
 								}
 								end << {
-									line = workspaceModulesResponse.module[i].symbol[j].context.endLine -1
+									line = workspaceModulesResponse.module[i].symbol[j].context.endLine
 									character = workspaceModulesResponse.module[i].symbol[j].context.endColumn
 								}
 							}
