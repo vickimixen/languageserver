@@ -463,11 +463,11 @@ service TextDocument {
 						uri = inspectResponse.module
 						range << {
 							start <<  {
-								line = inspectResponse.module.context.startLine -1
+								line = inspectResponse.module.context.startLine
 								character = inspectResponse.module.context.startColumn
 							}
 							end << {
-								line = inspectResponse.module.context.endLine -1
+								line = inspectResponse.module.context.endLine
 								character = inspectResponse.module.context.endColumn
 							}
 						}
@@ -517,11 +517,11 @@ service TextDocument {
 						response.changes.(inspectionResponse.module[i])._[j] << {
 								range << {
 									start << {
-										line = inspectionResponse.module[i].symbol[j].context.startLine -1
+										line = inspectionResponse.module[i].symbol[j].context.startLine
 										character = inspectionResponse.module[i].symbol[j].context.startColumn
 									}
 									end << {
-										line = inspectionResponse.module[i].symbol[j].context.endLine -1
+										line = inspectionResponse.module[i].symbol[j].context.endLine
 										character = inspectionResponse.module[i].symbol[j].context.endColumn
 									}
 								}

@@ -96,11 +96,11 @@ service InspectionUtils {
 							severity = s
 							range << {
 								start << {
-								line = startLine -1
+								line = startLine
 								character = startColumn
 								}
 								end << {
-								line = endLine -1
+								line = endLine
 								character = endColumn
 								}
 							}
@@ -172,11 +172,11 @@ service InspectionUtils {
 						diagnostics << {
 						range << {
 							start << {
-							line = l-1
+							line = l
 							character = 1
 							}
 							end << {
-							line = l-1
+							line = l
 							character = INTEGER_MAX_VALUE
 							}
 						}

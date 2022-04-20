@@ -315,6 +315,7 @@ public class Inspector extends JavaService {
 						// Create an entry in the result for this symbol
 						// Check if the context from the symbol actually points correctly to the word we are looking for,
 						// so we do not rename in the wrong place
+						System.out.println("localsymbol context:\n"+localSymbol.context().toString());
 						String wordFromContext = getWordFromContext(sourceOfWordWeAreLookingFor, localSymbol.context(), wordWeAreLookingFor);
 						if(wordFromContext.equals(wordWeAreLookingFor)){ // the rename will happen in the correct place, so we create symbol object
 							Value symbol = buildSymbolResponse(localSymbol.context(), localSymbol.name());
@@ -476,7 +477,7 @@ public class Inspector extends JavaService {
 	private String getWordFromContext(String source, ParsingContext context, String wordWeAreLookingFor){
 		try {
 			String[] lines = source.lines().toArray(String[]::new); // split the source into lines
-			String lineString = lines[context.startLine()-1]; // get the line of source
+			String lineString = lines[context.startLine()]; // get the line of source
 			// get the part of text that starts at the column and ends column+length(wordWeAreLookingFor)
 			String wordFromContext = lineString.substring(context.startColumn(), context.startColumn() + wordWeAreLookingFor.length());
 			return wordFromContext;	
