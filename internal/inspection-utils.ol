@@ -1,9 +1,32 @@
+/* MIT License
+ *
+ * Copyright (c) 2021 The Jolie Programming Language
+ * Copyright (c) 2022 Vicki Mixen <vicki@mixen.dk>
+ * Copyright (C) 2022 Fabrizio Montesi <famontesi@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.from console import Console
+ */
 from console import Console
 from string_utils import StringUtils
 from runtime import Runtime
 from file import File
-from ..inspectorJavaService.inspector import Inspector
-from ..inspectorJavaService.inspector import CodeCheckExceptionType
+from ..inspectorJavaService.inspector import Inspector, CodeCheckExceptionType
 from ..lsp import ServerToClient, InspectionUtilsInterface
 
 constants {
@@ -11,28 +34,28 @@ constants {
 }
 
 service InspectionUtils {
-    execution: sequential
+	execution: sequential
 
-    embed Inspector as Inspector
+	embed Inspector as Inspector
 	embed Console as Console
 	embed StringUtils as StringUtils
 	embed Runtime as Runtime
 	embed File as File
 
-    inputPort InspectionUtils {
-        location: "local://InspectionUtils"
-        interfaces: InspectionUtilsInterface
-    }
+	inputPort InspectionUtils {
+		location: "local://InspectionUtils"
+		interfaces: InspectionUtilsInterface
+	}
 
 	outputPort LanguageClient {
 		location: "local://Client"
 		interfaces: ServerToClient
 	}
 
-    init {
-        println@Console("InspectionUtils Service started at "+ global.inputPorts.Utils.location + ".")()//" connected to " + LanguageClient.location )()
-    }
-	
+	init {
+		println@Console("InspectionUtils Service started at "+ global.inputPorts.Utils.location + ".")()//" connected to " + LanguageClient.location )()
+	}
+
 	define createInspectionReq {
 		// TODO : fix these:
 		// - remove the directories of this LSP
@@ -53,7 +76,7 @@ service InspectionUtils {
 		replacementRequest.regex = "%20"
 		replacementRequest.replacement = " "
 		replaceAll@StringUtils(replacementRequest)(inspectionReq.filename)
-		
+
 		replacementRequest = inspectionReq.includePaths[1]
 		replaceAll@StringUtils(replacementRequest)(inspectionReq.includePaths[1])
 	}
@@ -62,9 +85,6 @@ service InspectionUtils {
 		scope(inspection){
 			install( CodeCheckException =>
 				stderr << inspection.CodeCheckException
-				valueToPrettyString@StringUtils(stderr)(prettyCodeCheck)
-				println@Console("codeCheckException stderr:\n"+prettyCodeCheck)()
-				println@Console("stderr is an instance of CodeCheckExceptionType")()
 				for(codeMessage in stderr.exceptions){
 					if(is_defined(codeMessage.context)){
 						startLine << codeMessage.context.startLine
@@ -96,12 +116,12 @@ service InspectionUtils {
 							severity = s
 							range << {
 								start << {
-								line = startLine
-								character = startColumn
+									line = startLine
+									character = startColumn
 								}
 								end << {
-								line = endLine
-								character = endColumn
+									line = endLine
+									character = endColumn
 								}
 							}
 							source = "jolie"
@@ -117,7 +137,6 @@ service InspectionUtils {
 					uri = "file:" + documentUri
 					diagnostics = void
 				}
-
 			);
 			install(IOException =>
 				temperr << inspection.IOException
@@ -154,7 +173,7 @@ service InspectionUtils {
 						replaceRequest.replacement = "/"
 						replaceAll@StringUtils( replaceRequest )( documentUri )// documentUri = "///" + fileName
 					}
-					
+
 					//line
 					l = int( matchRes.group[2] )
 					//severity
@@ -172,12 +191,12 @@ service InspectionUtils {
 						diagnostics << {
 						range << {
 							start << {
-							line = l
-							character = 1
+								line = l
+								character = 1
 							}
 							end << {
-							line = l
-							character = INTEGER_MAX_VALUE
+								line = l
+								character = INTEGER_MAX_VALUE
 							}
 						}
 						severity = s
@@ -192,11 +211,11 @@ service InspectionUtils {
 						diagnostics = void
 					}
 				}
-				
+
 			)
 			// call local procedure to create inspection request
 			createInspectionReq
-			
+
 			inspectFile@Inspector( inspectionReq )( inspectionRes )
 			// no error happened, so we make an empty diagnostic to publish
 			diagnosticParams << {
@@ -206,7 +225,7 @@ service InspectionUtils {
 		}
 	}
 
-    main{
+	main{
 		/*
 		* This call is to check wether the source code contains errors,
 		* and it publishes the errors inspectFile found
@@ -215,8 +234,7 @@ service InspectionUtils {
 			println@Console("Inside inspectDocument")()
 			callInspection
 			publishDiagnostics@LanguageClient( diagnosticParams )
-			
-        }]
+		}]
 
 		/*
 		* This call is used for returning the found error diagnostics instead of publishing them.
@@ -235,5 +253,5 @@ service InspectionUtils {
 			// call local procedure to create request
 			createInspectionReq
 		}]
-    }
+	}
 }

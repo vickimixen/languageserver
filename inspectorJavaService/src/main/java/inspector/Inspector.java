@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2019 Saverio Giallorenzo <saverio.giallorenzo@gmail.com>
  * Copyright (C) 2019 Fabrizio Montesi <famontesi@gmail.com>
+ * Copyright (C) 2022 Vicki Mixen <vicki@mixen.dk>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public

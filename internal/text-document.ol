@@ -1,10 +1,33 @@
+/* MIT License
+ *
+ * Copyright (c) 2021 The Jolie Programming Language
+ * Copyright (c) 2022 Vicki Mixen <vicki@mixen.dk>
+ * Copyright (C) 2022 Fabrizio Montesi <famontesi@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.from console import Console
+ */
 from console import Console
 from string_utils import StringUtils
 from runtime import Runtime
 from file import File
 from exec import Exec
 from ..inspectorJavaService.inspector import Inspector
-
 from ..lsp import TextDocumentInterface, UtilsInterface, CompletionHelperInterface, InspectionUtilsInterface, GlobalVariables
 
 constants {
@@ -228,7 +251,7 @@ service TextDocument {
 				completionRes.items = void
 			}
 			println@Console( "Sending completion Item to the client" )()
-		} ]
+		}]
 
 		/*
 		* RR sent sent from the client when requesting a hover
@@ -240,7 +263,7 @@ service TextDocument {
 			println@Console( "hover req received.." )()
 			textDocUri -> hoverReq.textDocument.uri
 			getDocument@Utils( textDocUri )( document )
-			
+
 			line = document.lines[hoverReq.position.line]
 			program -> document.jolieProgram
 			trim@StringUtils( line )( trimmedLine )
@@ -249,98 +272,98 @@ service TextDocument {
 			//.group[1] is operaion name, .group[2] port name
 			find@StringUtils( trimmedLine )( findRes )
 			if ( findRes == 0 ) {
-			trimmedLine.regex = "\\[? ?( ?[A-z]+ ?)\\( ?[A-z]* ?\\)\\(? ?[A-z]* ?\\)? ?\\]? ?\\{?"
-			//in this case, we have only group[1] as op name
-			find@StringUtils( trimmedLine )( findRes )
+				trimmedLine.regex = "\\[? ?( ?[A-z]+ ?)\\( ?[A-z]* ?\\)\\(? ?[A-z]* ?\\)? ?\\]? ?\\{?"
+				//in this case, we have only group[1] as op name
+				find@StringUtils( trimmedLine )( findRes )
 			}
 
 			//if we found somenthing, we have to send a hover item, otherwise void
 			if ( findRes == 1 ) {
-			// portName might NOT be defined
-			portName -> findRes.group[2]
-			operationName -> findRes.group[1]
-			undef( trimmedLine.regex )
-			hoverInfo = operationName
+				// portName might NOT be defined
+				portName -> findRes.group[2]
+				operationName -> findRes.group[1]
+				undef( trimmedLine.regex )
+				hoverInfo = operationName
 
-			if ( is_defined( portName ) ) {
-				hoverInfo += "@" + portName
-				ports -> program.outputPorts
-			} else {
-				ports -> program.inputPorts
-			}
-
-			for ( port in ports ) {
 				if ( is_defined( portName ) ) {
-				ifGuard = port.name == portName && is_defined( port.interfaces )
+					hoverInfo += "@" + portName
+					ports -> program.outputPorts
 				} else {
-				//we do not know the port name, so we search for each port we have
-				//in the program
-				ifGuard = is_defined( port.interfaces )
+					ports -> program.inputPorts
 				}
 
-				if ( ifGuard ) {
-				for ( iFace in port.interfaces ) {
-					for ( op in iFace.operations ) {
-					if ( op.name == operationName ) {
-						found = true
-						if ( !is_defined( portName ) ) {
-						hoverInfo += port.name
-						}
+				for ( port in ports ) {
+					if ( is_defined( portName ) ) {
+						ifGuard = port.name == portName && is_defined( port.interfaces )
+					} else {
+						//we do not know the port name, so we search for each port we have
+						//in the program
+						ifGuard = is_defined( port.interfaces )
+					}
 
-						reqType = op.requestType
-						// reqTypeCode = op.requestType.code
-						// reqTypeCode = resTypeCode = "" // TODO : pretty type description
+					if ( ifGuard ) {
+						for ( iFace in port.interfaces ) {
+							for ( op in iFace.operations ) {
+								if ( op.name == operationName ) {
+									found = true
+									if ( !is_defined( portName ) ) {
+										hoverInfo += port.name
+									}
 
-						if ( is_defined( op.responseType ) ) {
-						resType = op.responseType
-						// resTypeCode = op.responseType.code
-						} else {
-						resType = ""
-						// resTypeCode = ""
+									reqType = op.requestType
+									// reqTypeCode = op.requestType.code
+									// reqTypeCode = resTypeCode = "" // TODO : pretty type description
+
+									if ( is_defined( op.responseType ) ) {
+										resType = op.responseType
+										// resTypeCode = op.responseType.code
+									} else {
+										resType = ""
+										// resTypeCode = ""
+									}
+								}
+							}
 						}
 					}
+				}
+
+				hoverInfo += "( " + reqType + " )"
+				//build the info
+				if ( resType != "" ) {
+					//the operation is a RR
+					hoverInfo += "( " + resType + " )"
+				}
+
+				// hoverInfo += "\n```\n*" + REQUEST_TYPE + "*: \n" + reqTypeCode
+				// if ( resTypeCode != "" ) {
+				//   hoverInfo += "\n\n*" + RESPONSE_TYPE + "*: \n" + resTypeCode
+				// }
+
+				//setting the content of the response
+				if ( found ) {
+					hoverResp.contents << {
+						language = "jolie"
+						value = hoverInfo
+					}
+
+					//computing and setting the range
+					length@StringUtils( line )( endCharPos )
+					line.word = trimmedLine
+					indexOf@StringUtils( line )( startChar )
+
+					hoverResp.range << {
+						start << {
+							line = hoverReq.position.line
+							character = startChar
+						}
+						end << {
+							line = hoverReq.position.line
+							character = endCharPos
+						}
 					}
 				}
-				}
 			}
-
-			hoverInfo += "( " + reqType + " )"
-			//build the info
-			if ( resType != "" ) {
-				//the operation is a RR
-				hoverInfo += "( " + resType + " )"
-			}
-
-			// hoverInfo += "\n```\n*" + REQUEST_TYPE + "*: \n" + reqTypeCode
-			// if ( resTypeCode != "" ) {
-			//   hoverInfo += "\n\n*" + RESPONSE_TYPE + "*: \n" + resTypeCode
-			// }
-
-			//setting the content of the response
-			if ( found ) {
-				hoverResp.contents << {
-				language = "jolie"
-				value = hoverInfo
-				}
-
-				//computing and setting the range
-				length@StringUtils( line )( endCharPos )
-				line.word = trimmedLine
-				indexOf@StringUtils( line )( startChar )
-
-				hoverResp.range << {
-				start << {
-					line = hoverReq.position.line
-					character = startChar
-				}
-				end << {
-					line = hoverReq.position.line
-					character = endCharPos
-				}
-				}
-			}
-			}
-		} ]
+		}]
 
 		[ signatureHelp( txtDocPositionParams )( signatureHelp ) {
 			// TODO, not finished, buggy, needs refactor
@@ -402,16 +425,16 @@ service TextDocument {
 				parametersLabel = opRequestType + " " + opResponseType
 				if ( foundSomething ) {
 					signatureHelp << {
-					signatures << {
-						label = label
-						parameters << {
-						label = parametersLabel
+						signatures << {
+							label = label
+							parameters << {
+								label = parametersLabel
+							}
 						}
-					}
 					}
 				}
 			}
-		} ]
+		}]
 
 		[ documentSymbol( request )( response ) {
 			println@Console("documentSymbol received")()
@@ -484,7 +507,7 @@ service TextDocument {
 		[rename(request)(response){
 			println@Console("Inside rename")()
 			response = void
-			
+
 			// get root path of the workspace
 			getRootUri@GlobalVar()(request.rootUri)
 
@@ -499,7 +522,7 @@ service TextDocument {
 			getFileSeparator@File()( fs )
 			request.includePaths[0] = jHome + fs + "include"
 			request.includePaths[1] = request.textDocument.uri
-			
+
 			scope(renameInspection){
 				// Catch errors from inspectionToRename in case the rename is not possible
 				install( default =>
@@ -515,17 +538,17 @@ service TextDocument {
 					for(j = 0, j < #inspectionResponse.module[i].symbol, j++){
 						println@Console("inspectionResponse.module: "+inspectionResponse.module[i])()
 						response.changes.(inspectionResponse.module[i])._[j] << {
-								range << {
-									start << {
-										line = inspectionResponse.module[i].symbol[j].context.startLine
-										character = inspectionResponse.module[i].symbol[j].context.startColumn
-									}
-									end << {
-										line = inspectionResponse.module[i].symbol[j].context.endLine
-										character = inspectionResponse.module[i].symbol[j].context.endColumn
-									}
+							range << {
+								start << {
+									line = inspectionResponse.module[i].symbol[j].context.startLine
+									character = inspectionResponse.module[i].symbol[j].context.startColumn
 								}
-								newText = request.newName
+								end << {
+									line = inspectionResponse.module[i].symbol[j].context.endLine
+									character = inspectionResponse.module[i].symbol[j].context.endColumn
+								}
+							}
+							newText = request.newName
 						}
 					}
 				}
