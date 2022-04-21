@@ -1,69 +1,93 @@
+/* MIT License
+ *
+ * Copyright (c) 2021 The Jolie Programming Language
+ * Copyright (c) 2022 Vicki Mixen <vicki@mixen.dk>
+ * Copyright (C) 2022 Fabrizio Montesi <famontesi@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.from console import Console
+ */
 /*
  * Jolie types for the Language Server Protocol
  * see https://microsoft.github.io/language-server-protocol/specification
  */
 
 /*
-* @author Eros Fabrici
-*/
+ * @author Eros Fabrici
+ */
 
 type InitializeParams {
-  processId: int | void
-  rootPath?: string | void
-  rootUri: DocumentUri | void
-  initializationOptions?: undefined
-  capabilities: ClientCapabilities
-  trace?: string // "off" | "messages" | "verbose"
-  workspaceFolders*: WorkspaceFolder | void
+	processId: int | void
+	rootPath?: string | void
+	rootUri: DocumentUri | void
+	initializationOptions?: undefined
+	capabilities: ClientCapabilities
+	trace?: string // "off" | "messages" | "verbose"
+	workspaceFolders*: WorkspaceFolder | void
 }
 
 type WorkspaceFolder {
-  uri: string
-  name: string
+	uri: string
+	name: string
 }
 
 type DocumentUri: string
 
 
 type TextDocumentIdentifier {
-  uri: DocumentUri
+	uri: DocumentUri
 }
 
 type VersionedTextDocumentIdentifier {
-  uri: DocumentUri
-  version: int | void
+	uri: DocumentUri
+	version: int | void
 }
 
 type ClientCapabilities {
-  workspace?: WorkspaceClientCapabilities
-  textDocument?: TextDocumentClientCapabilities
-  experimental?: undefined
+	workspace?: WorkspaceClientCapabilities
+	textDocument?: TextDocumentClientCapabilities
+	experimental?: undefined
 }
 
 type WorkspaceClientCapabilities {
-  applyEdit?: bool
-  workspaceEdit? {
-	documentChanges?: bool
-	resourceOperations*: ResourceOperationKind
-	failureHandling?: FailureHandlingKind
-  }
-  didChangeConfiguration? {
-	dynamicRegistration?: bool
-  }
-  didChangeWatchedFiles? {
-	dynamicRegistration?: bool
-  }
-  symbol? {
-	dynamicRegistration?: bool
-	symbolKind? {
-	  valueSet*: SymbolKind
+	applyEdit?: bool
+	workspaceEdit? {
+		documentChanges?: bool
+		resourceOperations*: ResourceOperationKind
+		failureHandling?: FailureHandlingKind
 	}
-  }
-  executeCommand? {
-	dynamicRegistration?: bool
-  }
-  workspaceFolders?: bool
-  configuration?: bool
+	didChangeConfiguration? {
+		dynamicRegistration?: bool
+	}
+	didChangeWatchedFiles? {
+		dynamicRegistration?: bool
+	}
+	symbol? {
+		dynamicRegistration?: bool
+		symbolKind? {
+			valueSet*: SymbolKind
+		}
+	}
+	executeCommand? {
+		dynamicRegistration?: bool
+	}
+	workspaceFolders?: bool
+	configuration?: bool
 }
 
 type ResourceOperationKind: string //namespace, see official spec
@@ -74,195 +98,195 @@ type CompletionItemKind: int // namespace, see official spec
 type CodeActionKind: string //namespace, see official spec
 
 type TextDocumentClientCapabilities {
-  synchronization? {
-	dynamicRegistration?: bool
-	willSave?: bool
-	willSaveWaitUntil?: bool
-	didSave?: bool
-  }
-  completion? {
-	dynamicRegistration?: bool
-	completionItem? {
-	  snippetSupport?: bool
-	  commitCharactersSupport?: bool
-	  documentationFormat*: MarkupKind
-	  deprecatedSupport?: bool
-	  preselectSupport?: bool
+	synchronization? {
+		dynamicRegistration?: bool
+		willSave?: bool
+		willSaveWaitUntil?: bool
+		didSave?: bool
 	}
-	completionItemKind? {
-	  valueSet*: CompletionItemKind
+	completion? {
+		dynamicRegistration?: bool
+		completionItem? {
+			snippetSupport?: bool
+			commitCharactersSupport?: bool
+			documentationFormat*: MarkupKind
+			deprecatedSupport?: bool
+			preselectSupport?: bool
+		}
+		completionItemKind? {
+			valueSet*: CompletionItemKind
+		}
+		contextSupport?: bool
 	}
-	contextSupport?: bool
-  }
-  hover? {
-	dynamicRegistration?: bool
-	contentFormat*: MarkupKind
-  }
-  signatureHelp? {
-	dynamicRegistration?: bool
-	signatureInformation? {
-	  documentationFormat*: MarkupKind
-	  parameterInformation? {
-		labelOffsetSupport?: bool
-	  }
+	hover? {
+		dynamicRegistration?: bool
+		contentFormat*: MarkupKind
 	}
-  }
-  references? {
-	dynamicRegistration?: bool
-  }
-  documentHighlight? {
-	dynamicRegistration?: bool
-  }
-  documentSymbol? {
-	dynamicRegistration?: bool
-	symbolKind? {
-	  valueSet*: SymbolKind
+	signatureHelp? {
+		dynamicRegistration?: bool
+		signatureInformation? {
+			documentationFormat*: MarkupKind
+			parameterInformation? {
+				labelOffsetSupport?: bool
+			}
+		}
 	}
-	hierarchicalDocumentSymbolSupport?: bool
-  }
-  formatting? {
-	dynamicRegistration?: bool
-  }
-  rangeFormatting? {
-	dynamicRegistration?: bool
-  }
-  onTypeFormatting? {
-	dynamicRegistration?: bool
-  }
-  declaration? {
-	dynamicRegistration?: bool
-	linkSupport?: bool
-  }
-  definition? {
-	dynamicRegistration?: bool
-	linkSupport?: bool
-  }
-  typeDefinition? {
-	dynamicRegistration?: bool
-	linkSupport?: bool
-  }
-  implementation? {
-	dynamicRegistration?: bool
-	linkSupport?: bool
-  }
-  codeAction? {
-	dynamicRegistration?: bool
-	codeActionLiteralSupport? {
-	  codeActionKind {
-		valueSet[1,*]: CodeActionKind
-	  }
+	references? {
+		dynamicRegistration?: bool
 	}
-  }
-  codeLens? {
-	dynamicRegistration?: bool
-  }
-  documentLink? {
-	dynamicRegistration?: bool
-  }
-  rename? {
-	dynamicRegistration?: bool
-	prepareSupport?: bool
-  }
-  publishDiagnostics? {
-	relatedInformation?: bool
-  }
-  foldingRange? {
-	dynamicRegistration?: bool
-	rangeLimit?: int
-	lineFoldingOnly?: bool
-  }
-  colorProvider? {
-	dynamicRegistration?: bool
-  }
+	documentHighlight? {
+		dynamicRegistration?: bool
+	}
+	documentSymbol? {
+		dynamicRegistration?: bool
+		symbolKind? {
+			valueSet*: SymbolKind
+		}
+		hierarchicalDocumentSymbolSupport?: bool
+	}
+	formatting? {
+		dynamicRegistration?: bool
+	}
+	rangeFormatting? {
+		dynamicRegistration?: bool
+	}
+	onTypeFormatting? {
+		dynamicRegistration?: bool
+	}
+	declaration? {
+		dynamicRegistration?: bool
+		linkSupport?: bool
+	}
+	definition? {
+		dynamicRegistration?: bool
+		linkSupport?: bool
+	}
+	typeDefinition? {
+		dynamicRegistration?: bool
+		linkSupport?: bool
+	}
+	implementation? {
+		dynamicRegistration?: bool
+		linkSupport?: bool
+	}
+	codeAction? {
+		dynamicRegistration?: bool
+		codeActionLiteralSupport? {
+			codeActionKind {
+				valueSet[1,*]: CodeActionKind
+			}
+		}
+	}
+	codeLens? {
+		dynamicRegistration?: bool
+	}
+	documentLink? {
+		dynamicRegistration?: bool
+	}
+	rename? {
+		dynamicRegistration?: bool
+		prepareSupport?: bool
+	}
+	publishDiagnostics? {
+		relatedInformation?: bool
+	}
+	foldingRange? {
+		dynamicRegistration?: bool
+		rangeLimit?: int
+		lineFoldingOnly?: bool
+	}
+	colorProvider? {
+		dynamicRegistration?: bool
+	}
 }
 
 type InitializedParams: void
 
 type InitializeResult {
-  capabilities: ServerCapabilities
+	capabilities: ServerCapabilities
 }
 
 type ServerCapabilities {
-  textDocumentSync?: TextDocumentSyncOptions | int
-  hoverProvider?: bool
-  completionProvider?: CompletionOptions
-  signatureHelpProvider?: SignatureHelpOptions
-  definitionProvider?: bool
-  typeDefinitionProvider?: undefined //TODO see LSP specification
-  implementationProvider?: undefined //TODO see LSP specification
-  referenceProvider?: undefined //TODO see LSP specification
-  documentHighlightProvider?: bool
-  documentSymbolProvider?: bool
-  codeActionProvider?: CodeLensOptions
-  documentFormattingProvider?: bool
-  documentRangeFormattingProvider?: bool
-  documentOnTypeFormattingProvider?: DocumentOnTypeFormattingOptions
-  renameProvider?: bool | RenameOptions
-  documentLinkProvider?: DocumentLinkOptions
-  colorProvider?: undefined //TODO see LSP specification
-  foldingRangeProvider?: undefined //TODO see LSP specification
-  declarationProvider?: undefined //TODO see LSP specification
-  executeCommandProvider?: ExecuteCommandOptions
-  workspace? {
-	workspaceFolders? {
-	  supported?: bool
-	  changeNotifications?: string | bool
+	textDocumentSync?: TextDocumentSyncOptions | int
+	hoverProvider?: bool
+	completionProvider?: CompletionOptions
+	signatureHelpProvider?: SignatureHelpOptions
+	definitionProvider?: bool
+	typeDefinitionProvider?: undefined //TODO see LSP specification
+	implementationProvider?: undefined //TODO see LSP specification
+	referenceProvider?: undefined //TODO see LSP specification
+	documentHighlightProvider?: bool
+	documentSymbolProvider?: bool
+	codeActionProvider?: CodeLensOptions
+	documentFormattingProvider?: bool
+	documentRangeFormattingProvider?: bool
+	documentOnTypeFormattingProvider?: DocumentOnTypeFormattingOptions
+	renameProvider?: bool | RenameOptions
+	documentLinkProvider?: DocumentLinkOptions
+	colorProvider?: undefined //TODO see LSP specification
+	foldingRangeProvider?: undefined //TODO see LSP specification
+	declarationProvider?: undefined //TODO see LSP specification
+	executeCommandProvider?: ExecuteCommandOptions
+	workspace? {
+		workspaceFolders? {
+			supported?: bool
+			changeNotifications?: string | bool
+		}
 	}
-  }
-  workspaceSymbolProvider?: bool
-  experimental?: undefined
-  codeLensProvider?: CodeLensOptions
+	workspaceSymbolProvider?: bool
+	experimental?: undefined
+	codeLensProvider?: CodeLensOptions
 }
 
 type ExecuteCommandOptions {
-  /*
-   * The commands to be executed on the server
-   */
-  commands[1,*]: string
+	/*
+	 * The commands to be executed on the server
+	 */
+	commands[1,*]: string
 }
 
 type DocumentLinkOptions {
-  /*
+	/*
 	 * Document links have a resolve provider as well
 	 */
 	resolveProvider?: bool
 }
 
 type RenameOptions {
-  /*
-   * Renames should be checked and tested before being executed
-   */
-  prepareProvider?: bool
+	/*
+	 * Renames should be checked and tested before being executed
+	 */
+	prepareProvider?: bool
 }
 
 type DocumentOnTypeFormattingOptions {
-  /*
-   * A character on which formatting should be triggered, like `}`
-   */
-  firstTriggerCharacter: string
-  /*
-   * More trigger characters
-   */
-  moreTriggerCharacter*: string
+	/*
+	 * A character on which formatting should be triggered, like `}`
+	 */
+	firstTriggerCharacter: string
+	/*
+	 * More trigger characters
+	 */
+	moreTriggerCharacter*: string
 }
 
 type CodeLensOptions {
-  /*
+	/*
 	 * Code lens has a resolve provider as well
 	 */
-   resolveProvider?: bool
+	resolveProvider?: bool
 }
 type SignatureHelpOptions {
-  /*
-   * The characters that trigger signature help
-   * automatically
-   */
-  triggerCharacters*: string
+	/*
+	 * The characters that trigger signature help
+	 * automatically
+	 */
+	triggerCharacters*: string
 }
 
 
 type ParameterInformation {
-  /*
+	/*
 	 * The label of this parameter information.
 	 *
 	 * Either a string or an inclusive start and exclusive end offsets within its containing
@@ -272,23 +296,23 @@ type ParameterInformation {
 	 * *Note*: a label of type string should be a substring of its containing signature label.
 	 * Its intended use case is to highlight the parameter label part in the `SignatureInformation.label`.
 	 */
-  label: string | void { _2: int } //string | [int, int]
-  /*
+	label: string | void { _2: int } //string | [int, int]
+	/*
 	 * The human-readable doc-comment of this parameter. Will be shown
 	 * in the UI but can be omitted.
 	 */
-  documentation?: string | MarkupContent
+	documentation?: string | MarkupContent
 }
 
 type SignatureInformation {
-  label: string
-  documentation?: string | MarkupContent
-  parameters*: ParameterInformation
+	label: string
+	documentation?: string | MarkupContent
+	parameters*: ParameterInformation
 }
 
 type SignatureHelp {
-  signatures[1,*]: SignatureInformation
-  /*
+	signatures[1,*]: SignatureInformation
+	/*
 	 * The active signature. If omitted or the value lies outside the
 	 * range of `signatures` the value defaults to zero or is ignored if
 	 * `signatures.length === 0`. Whenever possible implementors should
@@ -297,8 +321,8 @@ type SignatureHelp {
 	 * In future version of the protocol this property might become
 	 * mandatory to better express this.
 	 */
-  activeSignature?: int
-  /*
+	activeSignature?: int
+	/*
 	 * The active parameter of the active signature. If omitted or the value
 	 * lies outside the range of `signatures[activeSignature].parameters`
 	 * defaults to 0 if the active signature has parameters. If
@@ -307,41 +331,40 @@ type SignatureHelp {
 	 * mandatory to better express the active parameter if the
 	 * active signature does have any.
 	 */
-  activeParameter?: int
+	activeParameter?: int
 }
 
 type SignatureHelpResponse: SignatureHelp | void
 
 
-
 type CompletionOptions {
-  /*
+	/*
 	 * The server provides support to resolve additional
 	 * information for a completion item
 	 */
-   resolveProvider?: bool
+	resolveProvider?: bool
 	/*
 	 * The characters that trigger completion automatically
 	 */
-   triggerCharacters*: string
+	triggerCharacters*: string
 }
 
 type TextDocumentSyncOptions {
-  /*
+	/*
 	 * Open and close notifications are sent to the server If omitted open close notification should not
 	 * be sent
 	 */
-  openClose?: bool
-  /*
+	openClose?: bool
+	/*
 	 * Change notifications are sent to the server See TextDocumentSyncKindNone, TextDocumentSyncKindFull
 	 * and TextDocumentSyncKindIncremental If omitted it defaults to TextDocumentSyncKindNone
 	 */
-  change?: int
-  /*
+	change?: int
+	/*
 	 * If present will save notifications are sent to the server If omitted the notification should not be
 	 * sent
 	 */
-  willSave?: bool
+	willSave?: bool
 	/*
 	 * If present will save wait until requests are sent to the server If omitted the request should not be
 	 * sent
@@ -351,19 +374,19 @@ type TextDocumentSyncOptions {
 	 * If present save notifications are sent to the server If omitted the notification should not be
 	 * sent
 	 */
-  save?: SaveOptions
+	save?: SaveOptions
 }
 
 type SaveOptions {
-  includeText?: bool
+	includeText?: bool
 }
 
 type DidOpenTextDocumentParams {
-  textDocument: TextDocumentItem
+	textDocument: TextDocumentItem
 }
 
 type TextDocumentItem {
-  /*
+	/*
 	 * The text document's URI
 	 */
 	uri: DocumentUri
@@ -383,12 +406,12 @@ type TextDocumentItem {
 }
 
 type DidChangeTextDocumentParams {
-  /*
-   * The document that did change The version number points
-   * to the version after all provided content changes have
-   * been applied
-   */
-  textDocument: VersionedTextDocumentIdentifier
+	/*
+	 * The document that did change The version number points
+	 * to the version after all provided content changes have
+	 * been applied
+	 */
+	textDocument: VersionedTextDocumentIdentifier
 	/*
 	 * The actual content changes The content changes describe single state changes
 	 * to the document So if there are two content changes c1 and c2 for a document
@@ -398,7 +421,7 @@ type DidChangeTextDocumentParams {
 }
 
 type TextDocumentContentChangeEvent {
-  /*
+	/*
 	 * The range of the document that changed
 	 */
 	range?: Range
@@ -413,12 +436,12 @@ type TextDocumentContentChangeEvent {
 }
 
 type Range {
-  start: Position
-  end: Position
+	start: Position
+	end: Position
 }
 
 type Position {
-  /*
+	/*
 	 * Line position in a document (zero-based)
 	 */
 	line: int
@@ -435,42 +458,42 @@ type Position {
 }
 
 type WillSaveTextDocumentParams {
-  textDocument: TextDocumentIdentifier
-  reason: int // 1=Manual, 2=afterDelay, 3=FocusOut
+	textDocument: TextDocumentIdentifier
+	reason: int // 1=Manual, 2=afterDelay, 3=FocusOut
 }
 
 type WillSaveWaitUntilResponse: TextEdit | void //TextEdit[1,*]
 
 type DidSaveTextDocumentParams {
-  textDocument: VersionedTextDocumentIdentifier
-  text?: string
+	textDocument: VersionedTextDocumentIdentifier
+	text?: string
 }
 
 type DidCloseTextDocumentParams {
-  textDocument: TextDocumentIdentifier
+	textDocument: TextDocumentIdentifier
 }
 
 type TextEdit {
-  range: Range
-  newText: string
+	range: Range
+	newText: string
 }
 
 type TextDocumentPositionParams {
-  textDocument: TextDocumentIdentifier
-  position: Position
+	textDocument: TextDocumentIdentifier
+	position: Position
 }
 
 type CompletionParams {
-  textDocument: TextDocumentIdentifier
-  position: Position
-  context?: CompletionContext
+	textDocument: TextDocumentIdentifier
+	position: Position
+	context?: CompletionContext
 }
 
 type CompletionContext {
-  /*
+	/*
 	 * How the completion was triggered
-   * CompletionTriggerKind: 1 = Invoked, 2 = TriggerCharacter,
-   *                        3 = TriggerForIncompleteCompletions
+	 * CompletionTriggerKind: 1 = Invoked, 2 = TriggerCharacter,
+	 *                        3 = TriggerForIncompleteCompletions
 	 */
 	triggerKind: int
 
@@ -489,7 +512,7 @@ type EmptyCompletionList {
 type CompletionResult: CompletionList | EmptyCompletionList | void
 
 type CompletionList {
-  /*
+	/*
 	 * This list it not complete Further typing should result in recomputing
 	 * this list
 	 */
@@ -498,12 +521,11 @@ type CompletionList {
 	/*
 	 * The completion items
 	 */
-
-  items*: CompletionItem
+	items*: CompletionItem
 }
 
 type CompletionItem {
-  /*
+	/*
 	 * The label of this completion item By default
 	 * also the text that is inserted when selecting
 	 * this completion
@@ -641,45 +663,45 @@ type CompletionItem {
  * remove HTML from the markdown to avoid script execution
  */
 type MarkupContent {
-  kind: undefined
-  value: string
+	kind: undefined
+	value: string
 }
 
 type Command {
-  title: string
-  command: string
-  arguments*: undefined
+	title: string
+	command: string
+	arguments*: undefined
 }
 
 type DidChangeWatchedFilesParams {
-  changes[1,*]: FileEvent
+	changes[1,*]: FileEvent
 }
 
 type FileEvent {
-  uri: DocumentUri
-  /*
-   * 1 = created, 2 = Changed, 3 = Deleted
-   */
-  type: int
+	uri: DocumentUri
+	/*
+	 * 1 = created, 2 = Changed, 3 = Deleted
+	 */
+	type: int
 }
 
 type DidChangeWorkspaceFoldersParams {
-  event: WorkspaceFolderChangeEvent
+	event: WorkspaceFolderChangeEvent
 }
 
 type WorkspaceFolderChangeEvent {
-  added[1,*]: WorkspaceFolder
-  removed[1,*]: WorkspaceFolder
+	added[1,*]: WorkspaceFolder
+	removed[1,*]: WorkspaceFolder
 }
 
 type DidChangeConfigurationParams {
-  settings: undefined
+	settings: undefined
 }
 
 type WorkspaceSymbolParams {
-  query: string
-  workDoneToken?: int | string
-  partialResultToken?: int | string
+	query: string
+	workDoneToken?: int | string
+	partialResultToken?: int | string
 }
 
 type WorkSpaceSymbolResponse {_*: SymbolInformation | WorkspaceSymbol}
@@ -693,7 +715,7 @@ type WorkspaceSymbol {
 }
 
 type SymbolInformation {
-  /*
+	/*
 	 * The name of this symbol
 	 */
 	name: string
@@ -728,24 +750,24 @@ type SymbolInformation {
 }
 
 type DocumentSymbolResult {
-  _*: SymbolInformation
+	_*: SymbolInformation
 }
 
 type Location {
-  uri: DocumentUri
-  range: Range
+	uri: DocumentUri
+	range: Range
 }
 
 type ExecuteCommandParams {
-  command: string
-  arguments*: undefined
+	command: string
+	arguments*: undefined
 }
 
 type ExecuteCommandResult: undefined
 
 type Hover {
-  contents[1,*]: MarkedString | MarkupContent
-  range?: Range
+	contents[1,*]: MarkedString | MarkupContent
+	range?: Range
 }
 
 type HoverInformations: Hover | void
@@ -755,55 +777,55 @@ type DefinitionResponse: Location | void
 type MarkedString: string | MarkSt
 
 type MarkSt {
-  language: string
-  value: string
+	language: string
+	value: string
 }
 
 type DiagnosticParams {
-  uri: DocumentUri
-  diagnostics*: Diagnostic | void
+	uri: DocumentUri
+	diagnostics*: Diagnostic | void
 }
 
 type Diagnostic {
-  range: Range
-  severity?: int //1=error, 2=warn, 3=info, 4=hint
-  code?: int | string
-  source?: string
-  message: string
-  relatedInformation*: DiagnosticRelatedInformation
+	range: Range
+	severity?: int //1=error, 2=warn, 3=info, 4=hint
+	code?: int | string
+	source?: string
+	message: string
+	relatedInformation*: DiagnosticRelatedInformation
 }
 
 type DiagnosticRelatedInformation {
-  location: Location
-  message: string
+	location: Location
+	message: string
 }
 
 type DocumentSymbolParams {
-  textDocument: TextDocumentIdentifier
+	textDocument: TextDocumentIdentifier
 }
 
 type Snippet: string {
-  prefix: string
-  body: string
+	prefix: string
+	body: string
 }
 
 type TextDocument {
-  uri: string
-  lines*: string
-  source: string
-  version: int
-  jolieProgram?: undefined
+	uri: string
+	lines*: string
+	source: string
+	version: int
+	jolieProgram?: undefined
 }
 
 type DocumentModifications {
-  version: int
-  uri: string
-  text: string
+	version: int
+	uri: string
+	text: string
 }
 
 type DocumentData {
-  uri: string
-  text: string
+	uri: string
+	text: string
 }
 
 type RenameRequest {
@@ -831,13 +853,13 @@ type RenameRequest {
 type RenameResponse: undefined | void
 
 interface GeneralInterface {
-  OneWay:
-    initialized( InitializedParams ),
-    onExit( void ),
-    cancelRequest
-  RequestResponse:
-    initialize( InitializeParams )( InitializeResult ),
-    shutdown( void )( void )
+	OneWay:
+		initialized( InitializedParams ),
+    	onExit( void ),
+    	cancelRequest
+	RequestResponse:
+    	initialize( InitializeParams )( InitializeResult ),
+    	shutdown( void )( void )
 }
 interface GlobalVariables {
 	RequestResponse:
@@ -845,44 +867,44 @@ interface GlobalVariables {
 }
 
 interface TextDocumentInterface {
-  OneWay:
-    didOpen( DidOpenTextDocumentParams ),
-    didChange( DidChangeTextDocumentParams ),
-    willSave( WillSaveTextDocumentParams ),
-    didSave( DidSaveTextDocumentParams ),
-    didClose( DidCloseTextDocumentParams )
-  RequestResponse:
-    willSaveWaitUntil( WillSaveTextDocumentParams )( WillSaveWaitUntilResponse ),
-    completion( CompletionParams )( CompletionResult ),
-    hover( TextDocumentPositionParams )( HoverInformations ),
-    documentSymbol( DocumentSymbolParams )( DocumentSymbolResult ),
-    signatureHelp( TextDocumentPositionParams )( SignatureHelpResponse ),
-	definition(TextDocumentPositionParams)(DefinitionResponse),
-	rename(RenameRequest)(RenameResponse)
+	OneWay:
+		didOpen( DidOpenTextDocumentParams ),
+		didChange( DidChangeTextDocumentParams ),
+		willSave( WillSaveTextDocumentParams ),
+		didSave( DidSaveTextDocumentParams ),
+		didClose( DidCloseTextDocumentParams )
+	RequestResponse:
+		willSaveWaitUntil( WillSaveTextDocumentParams )( WillSaveWaitUntilResponse ),
+		completion( CompletionParams )( CompletionResult ),
+		hover( TextDocumentPositionParams )( HoverInformations ),
+		documentSymbol( DocumentSymbolParams )( DocumentSymbolResult ),
+		signatureHelp( TextDocumentPositionParams )( SignatureHelpResponse ),
+		definition(TextDocumentPositionParams)(DefinitionResponse),
+		rename(RenameRequest)(RenameResponse)
 }
 
 interface WorkspaceInterface {
-  OneWay:
-    didChangeWatchedFiles( DidChangeWatchedFilesParams ),
-    didChangeWorkspaceFolders( DidChangeWorkspaceFoldersParams ),
-    didChangeConfiguration( DidChangeConfigurationParams )
-  RequestResponse:
-    symbol( WorkspaceSymbolParams )( WorkSpaceSymbolResponse ),
-    executeCommand( ExecuteCommandParams )( ExecuteCommandResult )
+	OneWay:
+		didChangeWatchedFiles( DidChangeWatchedFilesParams ),
+		didChangeWorkspaceFolders( DidChangeWorkspaceFoldersParams ),
+		didChangeConfiguration( DidChangeConfigurationParams )
+	RequestResponse:
+		symbol( WorkspaceSymbolParams )( WorkSpaceSymbolResponse ),
+		executeCommand( ExecuteCommandParams )( ExecuteCommandResult )
 }
 
 interface ServerToClient {
-  OneWay:
-    publishDiagnostics( DiagnosticParams )
+	OneWay:
+		publishDiagnostics( DiagnosticParams )
 }
 
 interface UtilsInterface {
-  RequestResponse:
-    getDocument( string )( TextDocument )
-  OneWay:
-    insertNewDocument( DidOpenTextDocumentParams ),
-    updateDocument( DocumentModifications ),
-    deleteDocument( DidCloseTextDocumentParams )
+	RequestResponse:
+		getDocument( string )( TextDocument )
+	OneWay:
+		insertNewDocument( DidOpenTextDocumentParams ),
+		updateDocument( DocumentModifications ),
+		deleteDocument( DidCloseTextDocumentParams )
 }
 
 type CreationResponse {
@@ -892,8 +914,8 @@ type CreationResponse {
 }
 
 interface InspectionUtilsInterface {
-    RequestResponse:
-        inspectDocument( DocumentData )(undefined),
+	RequestResponse:
+		inspectDocument( DocumentData )(undefined),
 		inspectDocumentReturnDiagnostics( DocumentData)( DiagnosticParams),
 		createMinimalInspectionRequest(DocumentData)(CreationResponse)
 }

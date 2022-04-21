@@ -1,7 +1,30 @@
+/* MIT License
+ *
+ * Copyright (c) 2021 The Jolie Programming Language
+ * Copyright (c) 2022 Vicki Mixen <vicki@mixen.dk>
+ * Copyright (C) 2022 Fabrizio Montesi <famontesi@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.from console import Console
+ */
 from console import Console
 from string_utils import StringUtils
 from ..inspectorJavaService.pathsInJolie import PathsInJolie
-
 from ..lsp import CompletionHelperInterface
 
 constants {
@@ -33,19 +56,19 @@ constants {
 }
 
 service CompletionHelper {
-    execution: concurrent
+	execution: concurrent
 
 	embed Console as Console
 	embed StringUtils as StringUtils
-    embed PathsInJolie as PathsInJolie
+	embed PathsInJolie as PathsInJolie
 
-    inputPort CompletionHelper{
+	inputPort CompletionHelper{
 		location: "local://CompletionHelper"
 		interfaces: CompletionHelperInterface
-    }
+	}
 
-    init{
-        global.keywordSnippets << {
+	init{
+		global.keywordSnippets << {
 			snippet[0] = "outputPort"
 			snippet[0].body = "outputPort ${1:PortName} {\n\tLocation: $2\n\tProtocol: $3\n\tInterfaces: $4\n}"
 			snippet[1] = "inputPort"
@@ -114,69 +137,65 @@ service CompletionHelper {
 			snippet[32] = "from"
 			snippet[32].body = "from ${0:module} import ${1:symbols}"
 		}
-    }
+	}
 
-    main{
+	main{
 		/*
 		* Tries to find a possible completion as if the request is for an operation
 		* @Request CompletionOperationRequest from lsp.ol
 		* @Response CompletionOperationResponse from lsp.ol
 		*/
-        [completionOperation(request)(response){
-            for ( port in request.jolieProgram.outputPorts ) {
-					for ( iFace in port.interfaces ) {
-					    for ( op in iFace.operations ) {
-						    if ( !is_defined( triggerChar ) ) {
-                                //was not '@' to trigger the completion
-                                contains@StringUtils( op.name {substring = request.codeLine} )( operationFound ) // TODO: fuzzy search
-                                undef( temp )
-                                if ( operationFound ) {
+		[completionOperation(request)(response){
+			for ( port in request.jolieProgram.outputPorts ) {
+				for ( iFace in port.interfaces ) {
+					for ( op in iFace.operations ) {
+						if ( !is_defined( triggerChar ) ) {
+							//was not '@' to trigger the completion
+							contains@StringUtils( op.name {substring = request.codeLine} )( operationFound ) // TODO: fuzzy search
+							undef( temp )
+							if ( operationFound ) {
+								snippet = op.name + "@" + port.name
+								label = snippet
+								kind = CompletionItemKind_Method
+							}
+						} else {
+							//@ triggered the completion
+							operationFound = ( op.name == request.codeLine )
+							label = port.name
+							snippet = label
+							kind = CompletionItemKind_Class
+						}
 
-                                    snippet = op.name + "@" + port.name
-                                    label = snippet
-                                    kind = CompletionItemKind_Method
-                                }
-						    } else {
-                                //@ triggered the completion
-                                operationFound = ( op.name == request.codeLine )
-
-                                label = port.name
-                                snippet = label
-                                kind = CompletionItemKind_Class
-                            }
-
-                            if ( operationFound ) {
-                                //build the rest of the snippet to be sent
-                                if ( is_defined( op.responseType ) ) {
-                                    //is a reqRes operation
-                                    reqVar = op.requestType.name
-                                    
-                                    resVar = op.responseType.name
-                                    if ( resVar == NATIVE_TYPE_VOID ) {
-                                    resVar = ""
-                                    }
-                                    snippet += "( ${1:" + reqVar + "} )( ${2:" + resVar + "} )"
-                                } else {
-                                    //is a OneWay operation
-                                    notificationVar = op.requestType.name
-                                    
-                                    snippet = "( ${1:" + notificationVar + "} )"
-                                }
-
-                                //build the completionItem
-                                portFound = true
-                                completionItem << {
-                                    label = label
-                                    kind = kind
-                                    insertTextFormat = 2
-                                    insertText = snippet
-                                }
-                                response.result[#response.result] << completionItem
-                            }
-					    }
+						if ( operationFound ) {
+							//build the rest of the snippet to be sent
+							if ( is_defined( op.responseType ) ) {
+								//is a reqRes operation
+								reqVar = op.requestType.name
+								resVar = op.responseType.name
+								if ( resVar == NATIVE_TYPE_VOID ) {
+									resVar = ""
+								}
+								snippet += "( ${1:" + reqVar + "} )( ${2:" + resVar + "} )"
+							} else {
+								//is a OneWay operation
+								notificationVar = op.requestType.name
+								snippet = "( ${1:" + notificationVar + "} )"
+							}
+							
+							//build the completionItem
+							portFound = true
+							completionItem << {
+								label = label
+								kind = kind
+								insertTextFormat = 2
+								insertText = snippet
+							}
+							response.result[#response.result] << completionItem
+						}
 					}
 				}
-        }]
+			}
+		}]
 
 		/*
 		* Tries to find a possible completion as if the request is for a keyword
@@ -184,26 +203,26 @@ service CompletionHelper {
 		* @Response CompletionKeywordResponse from lsp.ol
 		*/
 		[completionKeywords(request)(response){
-            //loop for completing reservedWords completion
-            //for (kewyword in global.keywordSnippets.snippet)
-            //doesn't work, used a classic for with counter
-            keyword -> global.keywordSnippets
-            for ( i=0, i<#keyword.snippet, i++ ) {
-                contains@StringUtils( keyword.snippet[i] {
-                substring = request.codeLine
-                } )( keywordFound )
-
-                if ( keywordFound ) {
-                item << {
-                    label = keyword.snippet[i]
-                    kind = 14
-                    insertTextFormat = 2
-                    insertText = keyword.snippet[i].body
-                }
-                response.result[#response.result] << item
-                }
-            }
-        }]
+			//loop for completing reservedWords completion
+			//for (kewyword in global.keywordSnippets.snippet)
+			//doesn't work, used a classic for with counter
+			keyword -> global.keywordSnippets
+			for ( i=0, i<#keyword.snippet, i++ ) {
+				contains@StringUtils( keyword.snippet[i] {
+					substring = request.codeLine
+				} )( keywordFound )
+				
+				if ( keywordFound ) {
+					item << {
+						label = keyword.snippet[i]
+						kind = 14
+						insertTextFormat = 2
+						insertText = keyword.snippet[i].body
+					}
+					response.result[#response.result] << item
+				}
+			}
+		}]
 
 		/*
 		* Completion for import module
@@ -212,9 +231,9 @@ service CompletionHelper {
 		*/
 		[completionImportModule(request)(response){
 			// calls helper function from java to inspect path from the import module
-            inspectPackagePath@PathsInJolie({joliePackagePath = request.regexMatch[1], sourcePath = request.txtDocUri })(inspectResponse)
-            response.result << inspectResponse.possiblePackages
-        }]
+			inspectPackagePath@PathsInJolie({joliePackagePath = request.regexMatch[1], sourcePath = request.txtDocUri })(inspectResponse)
+			response.result << inspectResponse.possiblePackages
+		}]
 
 		/*
 		* Completion for import symbol
@@ -223,8 +242,8 @@ service CompletionHelper {
 		*/
 		[completionImportSymbol(request)(response){
 			// calls helper function from java to inspect the symbol
-            inspectSymbol@PathsInJolie({packagePath = request.regexMatch[1], symbol = request.regexMatch[2], sourcePath = request.txtDocUri })(inspectResponse)
-            response.result << inspectResponse.possibleSymbols
-        }]
-    }
+			inspectSymbol@PathsInJolie({packagePath = request.regexMatch[1], symbol = request.regexMatch[2], sourcePath = request.txtDocUri })(inspectResponse)
+			response.result << inspectResponse.possibleSymbols
+		}]
+	}
 }

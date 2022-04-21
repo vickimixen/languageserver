@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2019 Saverio Giallorenzo <saverio.giallorenzo@gmail.com>
  * Copyright (C) 2019 Fabrizio Montesi <famontesi@gmail.com>
+ * Copyright (C) 2022 Vicki Mixen <vicki@mixen.dk>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,13 +23,13 @@ from types.JavaException import WeakJavaExceptionType
 //from types.CodeCheckException import CodeCheckExceptionType
 
 type LineInterval {
-    .start:int
-    .end:int
+	.start:int
+	.end:int
 }
 
 type ColumnInterval {
-    start:int
-    end:int
+	start:int
+	end:int
 }
 
 type Context {
@@ -45,7 +46,7 @@ type CodeCheckMessage {
 }
 
 type CodeCheckExceptionType {
-    .exceptions*:CodeCheckMessage
+	.exceptions*:CodeCheckMessage
 }
 
 type Field {
@@ -57,8 +58,7 @@ type Field {
 	type: TypeInfo
 }
 
-type TypeInfo:
-void {
+type TypeInfo: void {
 	documentation?: string
 	linkedTypeName: string
 }
@@ -152,7 +152,6 @@ type ModuleInspectionResponse {
 			startColumn: int
 			endColumn: int
 		}
-		
 	}
 }
 
@@ -189,39 +188,39 @@ type MoreSymbolsPerModule{
 }
 
 interface InspectorInterface {
-RequestResponse:
+	RequestResponse:
 	// general inspection
-	inspectFile(InspectionRequest)(FileInspectionResponse)
-		throws	CodeCheckException(CodeCheckExceptionType)
-						FileNotFoundException( WeakJavaExceptionType )
-						IOException( WeakJavaExceptionType ),
+		inspectFile(InspectionRequest)(FileInspectionResponse)
+			throws	CodeCheckException(CodeCheckExceptionType)
+					FileNotFoundException( WeakJavaExceptionType )
+					IOException( WeakJavaExceptionType ),
 	// not used at the moment
-	inspectPorts( InspectionRequest )( PortInspectionResponse )
-		throws	ParserException( WeakJavaExceptionType )
-						SemanticException( WeakJavaExceptionType )
-						FileNotFoundException( WeakJavaExceptionType )
-						IOException( WeakJavaExceptionType ),
+		inspectPorts( InspectionRequest )( PortInspectionResponse )
+			throws	ParserException( WeakJavaExceptionType )
+					SemanticException( WeakJavaExceptionType )
+					FileNotFoundException( WeakJavaExceptionType )
+					IOException( WeakJavaExceptionType ),
 	//not used at the moment
-	inspectTypes( InspectionRequest )( TypesInspectionResponse )
-		throws	ParserException( WeakJavaExceptionType )
-						SemanticException( WeakJavaExceptionType )
-						FileNotFoundException( WeakJavaExceptionType )
-						IOException( WeakJavaExceptionType ),
-	inspectModule(ModuleInspectionRequest)(ModuleInspectionResponse),
-	inspectWorkspaceModules(WorkspaceModulesInspectionRequest)(MoreSymbolsPerModule),
-	inspectionToRename(InspectionToRenameRequest)(MoreSymbolsPerModule)
-		throws FaultException(WeakJavaExceptionType),
+		inspectTypes( InspectionRequest )( TypesInspectionResponse )
+			throws	ParserException( WeakJavaExceptionType )
+					SemanticException( WeakJavaExceptionType )
+					FileNotFoundException( WeakJavaExceptionType )
+					IOException( WeakJavaExceptionType ),
+		inspectModule(ModuleInspectionRequest)(ModuleInspectionResponse),
+		inspectWorkspaceModules(WorkspaceModulesInspectionRequest)(MoreSymbolsPerModule),
+		inspectionToRename(InspectionToRenameRequest)(MoreSymbolsPerModule)
+			throws FaultException(WeakJavaExceptionType),
 	// used for codeLens
-	getModuleSymbols(InspectionRequest)(MoreSymbolsPerModule)
+		getModuleSymbols(InspectionRequest)(MoreSymbolsPerModule)
 }
 
 service Inspector {
-    inputPort ip {
-        location:"local"
-        interfaces: InspectorInterface
-    }
+	inputPort ip {
+		location:"local"
+		interfaces: InspectorInterface
+	}
 
-    foreign java {
-        class: "inspector.Inspector"
-    }
+	foreign java {
+		class: "inspector.Inspector"
+	}
 }
