@@ -137,6 +137,7 @@ public class Inspector extends JavaService {
 			String source = request.getFirstChild( "source" ).strValue();
 			String fileName = request.getFirstChild( "filename" ).strValue();
 			inspector = getInspector( fileName, Optional.of(source), includePaths, interpreter() );
+			System.out.println("No error was thrown while running getInspector");
 			return buildPortInspectionResponse( inspector );
 		} catch( CodeCheckException ex ) {
 			// Create a value containing the information needed from the CodeCheckException to create the correct diagnostic
@@ -548,7 +549,7 @@ public class Inspector extends JavaService {
 			new CommandLineParser( args, Inspector.class.getClassLoader() ).getInterpreterConfiguration();
 		SemanticVerifier.Configuration configuration =
 			new SemanticVerifier.Configuration( interpreterConfiguration.executionTarget() );
-		configuration.setCheckForMain( false );
+		configuration.setCheckForMain( false ); 
 		final InputStream sourceIs;
 		if( source.isPresent() ) {
 			sourceIs = new ByteArrayInputStream( source.get().getBytes() );
