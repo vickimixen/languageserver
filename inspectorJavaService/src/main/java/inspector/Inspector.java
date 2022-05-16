@@ -316,12 +316,13 @@ public class Inspector extends JavaService {
 				// check through local symbols first, to determine if we can simply change it in the current file and all files importing from this
 				// or if we have to find the imported module and rename both in the imported module and all other files importing from this
 				Boolean localSymbolFound = false;
+				System.out.println("symboltable:\n"+parseResult.symbolTables());
 				for (LocalSymbolInfo localSymbol : parseResult.symbolTables().get(currentFilePath.toURI()).localSymbols()) {
 					if(localSymbol.name().equals(wordWeAreLookingFor)){ // the symbol we are renaming is a local symbol to the currentFile
 						// Create an entry in the result for this symbol
 						// Check if the context from the symbol actually points correctly to the word we are looking for,
 						// so we do not rename in the wrong place
-						System.out.println("localsymbol context:\n"+localSymbol.context().toString());
+						
 						String wordFromContext = getWordFromContext(sourceOfWordWeAreLookingFor, localSymbol.context(), wordWeAreLookingFor);
 						if(wordFromContext.equals(wordWeAreLookingFor)){ // the rename will happen in the correct place, so we create symbol object
 							Value symbol = buildSymbolResponse(localSymbol.context(), localSymbol.name());
@@ -585,7 +586,7 @@ public class Inspector extends JavaService {
 	 * @throws IOException
 	 * @throws CodeCheckException
 	 */
-	private static SemanticVerifier getModuleInspector( String filename, Optional< String > source, String[] includePaths,
+	public static SemanticVerifier getModuleInspector( String filename, Optional< String > source, String[] includePaths,
 		Interpreter interpreter )
 		throws CommandLineException, IOException, CodeCheckException {
 		String[] args = { filename };
