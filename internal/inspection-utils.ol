@@ -88,8 +88,8 @@ service InspectionUtils {
 				stderr << inspection.CodeCheckException
 				for(codeMessage in stderr.exceptions){
 					if(is_defined(codeMessage.context)){
-						startLine << codeMessage.context.startLine
 						endLine << codeMessage.context.endLine
+						startLine = endLine // This is so the red squiggly line does not spread over more lines
 						startColumn << codeMessage.context.startColumn
 						endColumn << codeMessage.context.endColumn
 					} else {
