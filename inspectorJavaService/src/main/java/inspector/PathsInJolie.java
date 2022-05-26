@@ -90,10 +90,13 @@ public class PathsInJolie extends JavaService{
         String parentPath;
         if(sourcePath.endsWith(".ol")){
             File source = new File(sourcePath);
+            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1source: "+source);
             parentPath = source.getParent();
+
         } else {
             parentPath = sourcePath;
         }
+        System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!parentpath: "+parentPath);
         ArrayList<File> possibleFiles = new ArrayList<>();
 
         File correctPath = new File(parentPath + joliePackagePath);
@@ -161,8 +164,8 @@ public class PathsInJolie extends JavaService{
 
     /**
      * Called from langaugeserver/internal/completionHelper.ol
-     * Goes through all symbols in the imported module and checks wether they match what the user has started to write
-     * as the symbol they want to import. The symbol can either be a service
+     * Goes through all local symbols in the imported module and checks whether they match what the user has started to write
+     * as the symbol they want to import. The symbol can either be a service, interface or type
      * @param request
      * @return value containing a list(valueVector) of service, interface and type names
      */
@@ -187,7 +190,8 @@ public class PathsInJolie extends JavaService{
             filePath = new File(System.getenv("JOLIE_HOME")+System.getProperty("file.separator")+"packages"+packagePath+".ol");
         }
 
-        // go through the SymbolTables local symbols and find services,interfaces and types matching the word we are trying to complete
+        // go through the local symbols of the SymbolTable of the module being imported from
+        // and find services, interfaces and types matching the word we are trying to complete
         if(filePath.isFile()){
             try{
                 Path temp = filePath.toPath();
