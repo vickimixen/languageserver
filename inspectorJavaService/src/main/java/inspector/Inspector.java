@@ -585,7 +585,7 @@ public class Inspector extends JavaService {
 	 * @throws IOException
 	 * @throws CodeCheckException
 	 */
-	private static SemanticVerifier getModuleInspector( String filename, Optional< String > source, String[] includePaths,
+	public static SemanticVerifier getModuleInspector( String filename, Optional< String > source, String[] includePaths,
 		Interpreter interpreter )
 		throws CommandLineException, IOException, CodeCheckException {
 		String[] args = { filename };

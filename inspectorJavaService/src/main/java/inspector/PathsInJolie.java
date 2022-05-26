@@ -25,11 +25,16 @@
 package inspector;
 
 import java.util.ArrayList;
-import java.io.BufferedReader;
+import java.util.Optional;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
+import jolie.cli.CommandLineException;
+import jolie.lang.CodeCheckException;
+import jolie.lang.parse.SemanticVerifier;
+import jolie.lang.parse.module.LocalSymbolInfo;
 import jolie.runtime.JavaService;
 import jolie.runtime.Value;
 import jolie.runtime.ValueVector;
@@ -86,6 +91,7 @@ public class PathsInJolie extends JavaService{
         if(sourcePath.endsWith(".ol")){
             File source = new File(sourcePath);
             parentPath = source.getParent();
+
         } else {
             parentPath = sourcePath;
         }
@@ -156,8 +162,8 @@ public class PathsInJolie extends JavaService{
 
     /**
      * Called from langaugeserver/internal/completionHelper.ol
-     * Goes through all symbols in the imported module and checks wether they match what the user has started to write
-     * as the symbol they want to import. The symbol can either be a service
+     * Goes through all local symbols in the imported module and checks whether they match what the user has started to write
+     * as the symbol they want to import. The symbol can either be a service, interface or type
      * @param request
      * @return value containing a list(valueVector) of service, interface and type names
      */
@@ -182,25 +188,21 @@ public class PathsInJolie extends JavaService{
             filePath = new File(System.getenv("JOLIE_HOME")+System.getProperty("file.separator")+"packages"+packagePath+".ol");
         }
 
-        // read through the module source code and find services,interfaces and types matching the word we are trying to complete
-        // TODO: should probably use the symboltable from the compiler instead
+        // go through the local symbols of the SymbolTable of the module being imported from
+        // and find services, interfaces and types matching the word we are trying to complete
         if(filePath.isFile()){
             try{
-                FileReader fr = new FileReader(filePath);
-                BufferedReader br = new BufferedReader(fr);
-                String line;
-                while((line=br.readLine())!=null){
-                    if(line.matches("^(service|interface)\\s.+\\s\\{.*$") || line.matches("^type\\s.+(\\s\\{|\\:\\s.\\{).*$")){
-                        String[] tempSplit = line.split(" ");
-                        String name = tempSplit[1];
-                        if(name.startsWith(symbol)){
-                            possibleSymbolsVector.add(Value.create(name));
-                        }
+                Path temp = filePath.toPath();
+                String source = Files.readString(temp);
+                String[] includePaths = new String[]{};
+                final SemanticVerifier parseResult = Inspector.getModuleInspector( filePath.toString(), Optional.of( source ), includePaths, interpreter() );
+                for (LocalSymbolInfo localSymbol : parseResult.symbolTables().get(filePath.toURI()).localSymbols()) {
+                    if(localSymbol.name().startsWith(symbol)){
+                        possibleSymbolsVector.add(Value.create(localSymbol.name()));
                     }
                 }
-                br.close();
 
-            }catch(IOException e){ // if an error occurs we simply do nothing, and the result will be empty
+            }catch(IOException | CommandLineException |CodeCheckException e){ // if an error occurs we simply do nothing, and the result will be empty
             }
         }
         return result;
