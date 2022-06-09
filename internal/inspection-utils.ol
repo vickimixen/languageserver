@@ -218,9 +218,6 @@ service InspectionUtils {
 			createInspectionReq
 
 			inspectFile@Inspector( inspectionReq )( inspectionRes )
-			println@Console("No error happened while running inspectFile")()
-			valueToPrettyString@StringUtils(inspectionRes)(pretty)
-			println@Console("inspectionres:\n"+pretty)()
 			// no error happened, so we make an empty diagnostic to publish
 			diagnosticParams << {
 				uri << request.uri

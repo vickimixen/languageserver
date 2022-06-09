@@ -39,6 +39,8 @@ import jolie.lang.parse.ast.types.TypeDefinitionLink;
 import jolie.lang.parse.ast.types.TypeInlineDefinition;
 import jolie.lang.parse.context.ParsingContext;
 import jolie.lang.parse.module.ModuleException;
+import jolie.lang.parse.module.SymbolInfo;
+import jolie.lang.parse.module.Modules.ModuleParsedResult;
 import jolie.lang.parse.module.ImportedSymbolInfo;
 import jolie.lang.parse.module.LocalSymbolInfo;
 import jolie.lang.parse.util.Interfaces;
@@ -141,7 +143,6 @@ public class Inspector extends JavaService {
 			String source = request.getFirstChild( "source" ).strValue();
 			String fileName = request.getFirstChild( "filename" ).strValue();
 			inspector = getInspector( fileName, Optional.of(source), includePaths, interpreter() );
-			System.out.println("No error was thrown while running getInspector");
 			return buildPortInspectionResponse( inspector );
 		} catch( CodeCheckException ex ) {
 			// Create a value containing the information needed from the CodeCheckException to create the correct diagnostic
@@ -191,7 +192,7 @@ public class Inspector extends JavaService {
 			wordWeAreLookingFor = findWordWeAreLookingFor(fileName, column, line, Optional.of(source));
 
 			//get the parseResult which contains the map of symbolTables
-			final SemanticVerifier parseResult = getModuleInspector( fileName, Optional.of( source ), includePaths, interpreter() );
+			final ModuleParsedResult parseResult = getModuleInspector( fileName, Optional.of( source ), includePaths, interpreter() );
 			
 			// get the symbolTables for the file the request comes from
 			File file = new File(fileName);
@@ -242,7 +243,7 @@ public class Inspector extends JavaService {
 				String source = Files.readString(olfile.toPath());
 				try{
 					//get the parseResult which contains the map of symbolTables
-					final SemanticVerifier parseResult = getModuleInspector( olfile.toString(), Optional.of( source ), includePaths, interpreter() );
+					final ModuleParsedResult parseResult = getModuleInspector( olfile.toString(), Optional.of( source ), includePaths, interpreter() );
 					
 					Value module = Value.create(olfile.toString());
 					ValueVector symbols = module.getChildren("symbol");
@@ -303,114 +304,243 @@ public class Inspector extends JavaService {
 			Stream<Path> allFiles = Files.walk(rootPath.toPath());
 			File[] olFiles = allFiles.filter(Files::isRegularFile).filter(path -> path.toString().endsWith(".ol")).map(Path::toFile).toArray( File[]::new );
 			allFiles.close();
+			//The value containing a list of all modules containing the symbol we are looking for
 			ValueVector modules = result.getChildren("module");
 			
 			try {
-				// Get source of the currentFile for the parseResult
+				// Get source code of the currentFile for the parseResult
 				File currentFilePath = new File(currentFile);
-				String sourceOfWordWeAreLookingFor = Files.readString(currentFilePath.toPath()); // Read source code in as a string
-				final SemanticVerifier parseResult = getModuleInspector( currentFile, Optional.of( sourceOfWordWeAreLookingFor ), includePaths, interpreter() );
+				String sourceOfCurrentFile = Files.readString(currentFilePath.toPath()); // Read source code in as a string
+				// Get the parse result containing SymbolTables and lists of all references of symbols in the module
+				final ModuleParsedResult parseResult = getModuleInspector( currentFile, Optional.of( sourceOfCurrentFile ), includePaths, interpreter() );
 				// make module object for the currentFile and its symbols
 				Value currentModule = Value.create(currentFilePath.toURI().normalize().toString());
+				// Create list for all occurences of the value in the current module
 				ValueVector symbols = currentModule.getChildren("symbol");
 				// check through local symbols first, to determine if we can simply change it in the current file and all files importing from this
 				// or if we have to find the imported module and rename both in the imported module and all other files importing from this
 				Boolean localSymbolFound = false;
 				for (LocalSymbolInfo localSymbol : parseResult.symbolTables().get(currentFilePath.toURI()).localSymbols()) {
 					if(localSymbol.name().equals(wordWeAreLookingFor)){ // the symbol we are renaming is a local symbol to the currentFile
-						// Create an entry in the result for this symbol
-						// Check if the context from the symbol actually points correctly to the word we are looking for,
-						// so we do not rename in the wrong place
-						System.out.println("localsymbol context:\n"+localSymbol.context().toString());
-						String wordFromContext = getWordFromContext(sourceOfWordWeAreLookingFor, localSymbol.context(), wordWeAreLookingFor);
-						if(wordFromContext.equals(wordWeAreLookingFor)){ // the rename will happen in the correct place, so we create symbol object
-							Value symbol = buildSymbolResponse(localSymbol.context(), localSymbol.name());
-							symbols.add(symbol);
-							modules.add(currentModule);
-						} else{ // the symbol cannot be renamed correctly, throw error and do not rename anything
-							throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+currentFile+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
+						// Get the list containing all references of the local symbol in the current module
+						List<ParsingContext> allLocalSymbolOccurences;
+						if(parseResult.allSymbolReferences().containsKey(currentFilePath.toURI())){
+							if(parseResult.allSymbolReferences().get(currentFilePath.toURI()).containsKey(localSymbol)){
+								allLocalSymbolOccurences = parseResult.allSymbolReferences().get(currentFilePath.toURI()).get(localSymbol);
+								if(allLocalSymbolOccurences.size()<1){
+									System.out.println("The symbol '"+localSymbol.name()+"' exists in "+currentFile+". The symbol has an empty list of all occurences and cannot be renamed.");
+									break;
+								}
+							} else {
+								System.out.println("The symbol '"+localSymbol.name()+"' exists in "+currentFile+". The symbol does not have a list of all occurences and cannot be renamed.");
+								break;
+							}
+						} else {
+							System.out.println("The symbol '"+localSymbol.name()+"' exists in "+currentFile+". The module does not have a map of symbols containg lists of occurrences. Rename could not be done.");
+							break;
 						}
+						// The list of all occurrences of the local symbol exists
+						// Add all occurrences to the result
+						for(ParsingContext context : allLocalSymbolOccurences){
+							// Check that the context is pointing to the correct place in the source code
+							String wordFromContext = getWordFromContext(sourceOfCurrentFile, context, wordWeAreLookingFor);
+							if(wordFromContext.equals(wordWeAreLookingFor)){ // the rename will happen in the correct place, so we create symbol object
+								Value symbol = buildSymbolResponse(context, localSymbol.name());
+								symbols.add(symbol);
+								
+							} else{ // the symbol cannot be renamed correctly, throw error and do not rename anything
+								throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+currentFile+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
+							}
+							
+						}
+						
 						localSymbolFound = true;
-						for (File olfile : olFiles) { // go through all files in workspace and check if it has been imported anywhere
-							String source = Files.readString(olfile.toPath());
-							final SemanticVerifier parseResultForLoop = getModuleInspector( olfile.toString(), Optional.of( source ), includePaths, interpreter() );
+						// All local references are added to the result of the current module
+						modules.add(currentModule);
+						// go through all files in workspace and check if it has been imported anywhere
+						for (File olfile : olFiles) { 
+							if(olfile.equals(currentFilePath)){
+								// Do not look at the currentFile, since we already found symbols and add results for this file
+								continue;
+							}
+							String sourceOfFileThatMightImportSymbol = Files.readString(olfile.toPath());
+							final ModuleParsedResult parseResultForFileThatMightImportSymbol = getModuleInspector( olfile.toString(), Optional.of( sourceOfFileThatMightImportSymbol ), includePaths, interpreter() );
 							// create module object for each olfile
-							Value module = Value.create(olfile.toString());
-							ValueVector olfileSymbols = module.getChildren("symbol");
+							Value moduleFileThatMightImport = Value.create(olfile.toURI().toString());
+							ValueVector symbolsOfFileThatMightImport = moduleFileThatMightImport.getChildren("symbol");
 							//check the only the imported symbols
-							for (ImportedSymbolInfo importedSymbol : parseResultForLoop.symbolTables().get(olfile.toURI()).importedSymbolInfos()) {
-								// The symbol has been imported. The second check is to determine if the symbol is from currentFile or if another imported module has the same name for a symbol
+							for (ImportedSymbolInfo importedSymbol : parseResultForFileThatMightImportSymbol.symbolTables().get(olfile.toURI()).importedSymbolInfos()) {
+								// The second check is to determine if the symbol is from currentFile or if another imported module has the same name for another symbol
 								if(importedSymbol.name().equals(wordWeAreLookingFor) && importedSymbol.node().context().source().equals(currentFilePath.toURI().normalize())){
-									// Check if the context from the symbol actually points correctly to the word we are looking for,
-									// so we do not rename in the wrong place
-									String wordFromContext1 = getWordFromContext(source, importedSymbol.context(), wordWeAreLookingFor);
-									if(wordFromContext1.equals(wordWeAreLookingFor)){
-										Value symbol = buildSymbolResponse(importedSymbol.context(), importedSymbol.name());
-										olfileSymbols.add(symbol);
-									} else{
-										throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+olfile.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
+									List<ParsingContext> importSymbolReferences;
+									if(parseResultForFileThatMightImportSymbol.allSymbolReferences().containsKey(olfile.toURI())){
+										if(parseResultForFileThatMightImportSymbol.allSymbolReferences().get(olfile.toURI()).containsKey((SymbolInfo) importedSymbol)){
+											importSymbolReferences = parseResultForFileThatMightImportSymbol.allSymbolReferences().get(olfile.toURI()).get((SymbolInfo) importedSymbol);
+											if(importSymbolReferences.size()<1){
+												System.out.println("The symbol '"+importedSymbol.name()+"' exists in "+olfile.toURI().toString()+". The symbol has an empty list of all occurences and cannot be renamed.");
+												break;
+											}
+										} else {
+											System.out.println("The symbol '"+importedSymbol.name()+"' exists in "+olfile.toURI().toString()+". The symbol does not have a list of all occurences and cannot be renamed.");
+											break;
+										}
+									} else {
+										System.out.println("The symbol '"+importedSymbol.name()+"' exists in "+olfile.toURI().toString()+". The module does not have a map of symbols containg lists of occurrences. Rename could not be done.");
+										break;
+									}
+									// There is a list of occurrences of the imported symbol in the olfile
+									for(ParsingContext importedContext : importSymbolReferences){
+										// Check if the context from the symbol actually points correctly to the word we are looking for,
+										// so we do not rename in the wrong place
+										String wordFromContext1 = getWordFromContext(sourceOfFileThatMightImportSymbol, importedContext, wordWeAreLookingFor);
+										if(wordFromContext1.equals(wordWeAreLookingFor)){
+											Value symbol = buildSymbolResponse(importedContext, importedSymbol.name());
+											symbolsOfFileThatMightImport.add(symbol);
+										} else{
+											throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+olfile.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
+										}
 									}
 									
 								}
-							}modules.add(module);
+							}
+							// add the results of the imported symbols context of the ol file to the result
+							modules.add(moduleFileThatMightImport);
 						}
+						
 					}
 				}
 				// if the symbol we are renaming is not local to currentFile we check through imported symbols
-				if(!localSymbolFound){
-					for(ImportedSymbolInfo currentFileImportedSymbol : parseResult.symbolTables().get(currentFilePath.toURI()).importedSymbolInfos()){
-						if(currentFileImportedSymbol.name().equals(wordWeAreLookingFor)){ // the symbol is imported
-							URI importedFileURI = currentFileImportedSymbol.node().context().source(); // get the original module
-							// check it is not a module imported from the compiler, as we should rename anything related to modules from the compiler
-							if(importedFileURI.normalize().toString().contains(rootUri)){
-								// Check if the context from the symbol actually points correctly to the word we are looking for,
-								// so we do not rename in the wrong place
-								String wordFromContext = getWordFromContext(sourceOfWordWeAreLookingFor, currentFileImportedSymbol.context(), wordWeAreLookingFor);
-								if(wordFromContext.equals(wordWeAreLookingFor)){
-									Value symbol = buildSymbolResponse(currentFileImportedSymbol.context(), currentFileImportedSymbol.name());
-									symbols.add(symbol);
-									modules.add(currentModule);
-								} else{
-									throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+currentFile+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
-								}
-								// Check if the context from the symbol actually points correctly to the word we are looking for,
-								// so we do not rename in the wrong place
-								File importedFile = new File(importedFileURI.normalize().toString());
-								String importedSource = Files.readString(importedFile.toPath());
-								String importedWordFromContext = getWordFromContext(importedSource, currentFileImportedSymbol.node().context(), wordWeAreLookingFor);
-								if(importedWordFromContext.equals(wordWeAreLookingFor)){		
-									Value module = Value.create(importedFile.toString());
-									ValueVector importedFileSymbols = module.getChildren("symbol");
-									Value symbol = buildSymbolResponse(currentFileImportedSymbol.node().context(), currentFileImportedSymbol.name());
-									importedFileSymbols.add(symbol);
-									modules.add(module);
-								} else{
-									throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+importedFile.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
-								}
+				if(localSymbolFound){
+					return result;
+				}
 
-								// Go through all other files in workspace and check if they are importing this symbol so they can also be renamed
-								for (File olfile : olFiles) {
-									String source = Files.readString(olfile.toPath());
-									final SemanticVerifier parseResultForLoop = getModuleInspector( olfile.toString(), Optional.of( source ), includePaths, interpreter() );
-									//check if the symbol is imported first		
-									Value module = Value.create(olfile.toString());
-									ValueVector olfileSymbols = module.getChildren("symbol");
-									for (ImportedSymbolInfo importedSymbol : parseResultForLoop.symbolTables().get(olfile.toURI()).importedSymbolInfos()) {
-										if(importedSymbol.name().equals(wordWeAreLookingFor) && importedSymbol.node().context().source().equals(importedFileURI.normalize())){
-											String wordFromContext1 = getWordFromContext(source, importedSymbol.node().context(), wordWeAreLookingFor);
-											if(wordFromContext1.equals(wordWeAreLookingFor)){
-												Value symbol = buildSymbolResponse(importedSymbol.node().context(), importedSymbol.name());
-												olfileSymbols.add(symbol);
-											} else{
-												throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+importedFile.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
-											}
+				for(ImportedSymbolInfo currentFileImportedSymbol : parseResult.symbolTables().get(currentFilePath.toURI()).importedSymbolInfos()){
+					if(currentFileImportedSymbol.name().equals(wordWeAreLookingFor)){ // the symbol is imported
+						URI importedFileURI = currentFileImportedSymbol.node().context().source(); // get the original module
+						// check it is not a module imported from the compiler, as we should not rename anything related to modules from the interpreter
+						if(!importedFileURI.normalize().toString().contains(rootUri)){
+							System.out.println("The symbol '"+wordWeAreLookingFor+"' is imported from the module "+importedFileURI.toString()+" from the interpreter. Renaming of symbols from the interpreter is not possible.");
+							break;
+						}
+						List<ParsingContext> importSymbolReferences;
+						if(parseResult.allSymbolReferences().containsKey(currentFilePath.toURI())){
+							if(parseResult.allSymbolReferences().get(currentFilePath.toURI()).containsKey((SymbolInfo) currentFileImportedSymbol)){
+								importSymbolReferences = parseResult.allSymbolReferences().get(currentFilePath.toURI()).get((SymbolInfo) currentFileImportedSymbol);
+								if(importSymbolReferences.size()<1){
+									System.out.println("The symbol '"+currentFileImportedSymbol.name()+"' exists in "+currentFilePath.toURI().toString()+". The symbol has an empty list of all occurences and cannot be renamed.");
+									break;
+								}
+							} else {
+								System.out.println("The symbol '"+currentFileImportedSymbol.name()+"' exists in "+currentFilePath.toURI().toString()+". The symbol does not have a list of all occurences and cannot be renamed.");
+								break;
+							}
+						} else {
+							System.out.println("The symbol '"+currentFileImportedSymbol.name()+"' exists in "+currentFilePath.toURI().toString()+". The module does not have a map of symbols containg lists of occurrences. Rename could not be done.");
+							break;
+						}
+						// There is a list of occurrences for the imported symbol in the current module
+						for(ParsingContext importedContext : importSymbolReferences){
+							// Check if the context from the symbol actually points correctly to the word we are looking for,
+							// so we do not rename in the wrong place
+							String wordFromContext1 = getWordFromContext(sourceOfCurrentFile, importedContext, wordWeAreLookingFor);
+							if(wordFromContext1.equals(wordWeAreLookingFor)){
+								Value symbol = buildSymbolResponse(importedContext, currentFileImportedSymbol.name());
+								symbols.add(symbol);
+							} else{
+								throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+currentFilePath.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
+							}
+						}
+						// Add the occurrences of the imported symbol in the current module to result
+						modules.add(currentModule);
+						
+						// Rename the symbol in the file it is being imported from
+						File importedFile = new File(importedFileURI.getPath());
+						String importedSource = Files.readString(importedFile.toPath());
+						Value importedFileModule = Value.create(importedFileURI.toString());
+						ValueVector importedFileLocalSymbols = importedFileModule.getChildren("symbol");
+						final ModuleParsedResult importedFileParseResult = getModuleInspector( importedFile.toString(), Optional.of( importedSource ), includePaths, interpreter() );
+						// The symbol is local in this module
+						for (LocalSymbolInfo localSymbolInImportfile : importedFileParseResult.symbolTables().get(importedFileURI).localSymbols()) {
+							if(localSymbolInImportfile.name().equals(wordWeAreLookingFor)){
+								List<ParsingContext> importedSymbolLocalReferences;
+								if(importedFileParseResult.allSymbolReferences().containsKey(importedFileURI)){
+									if(importedFileParseResult.allSymbolReferences().get(importedFileURI).containsKey((SymbolInfo) localSymbolInImportfile)){
+										importedSymbolLocalReferences = importedFileParseResult.allSymbolReferences().get(importedFileURI).get((SymbolInfo) localSymbolInImportfile);
+										if(importedSymbolLocalReferences.size()<1){
+											System.out.println("The symbol '"+localSymbolInImportfile.name()+"' exists in "+importedFileURI.toString()+". The symbol has an empty list of all occurences and cannot be renamed.");
+											break;
 										}
+									} else {
+										System.out.println("The symbol '"+localSymbolInImportfile.name()+"' exists in "+importedFileURI.toString()+". The symbol does not have a list of all occurences and cannot be renamed.");
+										break;
 									}
-									modules.add(module);
+								} else {
+									System.out.println("The symbol '"+localSymbolInImportfile.name()+"' exists in "+importedFileURI.toString()+". The module does not have a map of symbols containg lists of occurrences. Rename could not be done.");
+									break;
+								}
+								
+								for(ParsingContext context : importedSymbolLocalReferences){
+									String wordFromContext1 = getWordFromContext(importedSource, context, wordWeAreLookingFor);
+									if(wordFromContext1.equals(wordWeAreLookingFor)){
+										Value symbol = buildSymbolResponse(context, localSymbolInImportfile.name());
+										importedFileLocalSymbols.add(symbol);
+									} else{
+										throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+importedFileURI.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
+									}
 								}
 							}
 						}
+						modules.add(importedFileModule);
+						// Go through all other files in workspace and check if they are importing this symbol so they can also be renamed
+						for (File olfile : olFiles) {
+							if(olfile.equals(importedFile) || olfile.equals(currentFilePath)){
+								continue;
+							}
+							String sourceOfFileThatMightImportSymbol = Files.readString(olfile.toPath());
+							final ModuleParsedResult parseResultForFileThatMightImportSymbol = getModuleInspector( olfile.toString(), Optional.of( sourceOfFileThatMightImportSymbol ), includePaths, interpreter() );
+							// create module object for each olfile
+							Value moduleFileThatMightImport = Value.create(olfile.toURI().toString());
+							ValueVector symbolsOfFileThatMightImport = moduleFileThatMightImport.getChildren("symbol");
+							//check the only the imported symbols
+							for (ImportedSymbolInfo importedSymbol : parseResultForFileThatMightImportSymbol.symbolTables().get(olfile.toURI()).importedSymbolInfos()) {
+								// The second check is to determine if the symbol is from currentFile or if another imported module has the same name for another symbol
+								if(importedSymbol.name().equals(wordWeAreLookingFor) && importedSymbol.node().context().source().equals(importedFileURI.normalize())){
+									List<ParsingContext> otherImportSymbolReferences;
+									if(parseResultForFileThatMightImportSymbol.allSymbolReferences().containsKey(olfile.toURI())){
+										if(parseResultForFileThatMightImportSymbol.allSymbolReferences().get(olfile.toURI()).containsKey((SymbolInfo) importedSymbol)){
+											otherImportSymbolReferences = parseResultForFileThatMightImportSymbol.allSymbolReferences().get(olfile.toURI()).get((SymbolInfo) importedSymbol);
+											if(importSymbolReferences.size()<1){
+												System.out.println("The symbol '"+importedSymbol.name()+"' exists in "+olfile.toURI().toString()+". The symbol has an empty list of all occurences and cannot be renamed.");
+												break;
+											}
+										} else {
+											System.out.println("The symbol '"+importedSymbol.name()+"' exists in "+olfile.toURI().toString()+". The symbol does not have a list of all occurences and cannot be renamed.");
+											break;
+										}
+									} else {
+										System.out.println("The symbol '"+importedSymbol.name()+"' exists in "+olfile.toURI().toString()+". The module does not have a map of symbols containg lists of occurrences. Rename could not be done.");
+										break;
+									}
+									// There is a list of occurrences of the imported symbol in the olfile
+									for(ParsingContext importedContext : otherImportSymbolReferences){
+										// Check if the context from the symbol actually points correctly to the word we are looking for,
+										// so we do not rename in the wrong place
+										String wordFromContext1 = getWordFromContext(sourceOfFileThatMightImportSymbol, importedContext, wordWeAreLookingFor);
+										if(wordFromContext1.equals(wordWeAreLookingFor)){
+											Value symbol = buildSymbolResponse(importedContext, importedSymbol.name());
+											symbolsOfFileThatMightImport.add(symbol);
+										} else{
+											throw new FaultException( "Rename abandoned. '"+wordWeAreLookingFor+"' exists in file: "+olfile.toString()+". '"+wordWeAreLookingFor+"' could however not be located and renamed correctly. The user is required to do this manually if the renaming is still wanted." );
+										}
+									}
+									
+								}
+							}
+							// add the results of the imported symbols context of the ol file to the result
+							modules.add(moduleFileThatMightImport);
+						}
 					}
+					
 				}
 				return result;
 			} catch (IOException ex) { // e.g. if one of the files could not be read
@@ -585,7 +715,7 @@ public class Inspector extends JavaService {
 	 * @throws IOException
 	 * @throws CodeCheckException
 	 */
-	public static SemanticVerifier getModuleInspector( String filename, Optional< String > source, String[] includePaths,
+	public static ModuleParsedResult getModuleInspector( String filename, Optional< String > source, String[] includePaths,
 		Interpreter interpreter )
 		throws CommandLineException, IOException, CodeCheckException {
 		String[] args = { filename };
@@ -600,7 +730,7 @@ public class Inspector extends JavaService {
 		} else {
 			sourceIs = interpreterConfiguration.inputStream();
 		}
-		SemanticVerifier semanticVerifierResult = ParsingUtils.parseProgramModule(
+		ModuleParsedResult moduleParsedResult = ParsingUtils.parseProgramModule(
 			sourceIs,
 			interpreterConfiguration.programFilepath().toURI(),
 			interpreterConfiguration.charset(),
@@ -611,7 +741,7 @@ public class Inspector extends JavaService {
 			interpreterConfiguration.constants(),
 			configuration,
 			true );
-		return semanticVerifierResult;
+		return moduleParsedResult;
 	}
 
 	/**

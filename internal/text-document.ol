@@ -466,7 +466,7 @@ service TextDocument {
 				// Do nothing in case of error, as a definition is simply not found
 				// and the extension provides this message by looking at the void response
 				install( default => 
-					valueToPrettyString@StringUtils(inspection.default)(prettyDefault)
+					valueToPrettyString@StringUtils(inspection)(prettyDefault)
 					println@Console("default error happened while looking for definition:\n"+prettyDefault)()
 				)
 				// Get the text of the file, which we get the definition request from
@@ -532,6 +532,8 @@ service TextDocument {
 				// Get all places the symbol needs to be renamed, this is still not an optimal function,
 				// as all places the symbol occurs cannot be found, and the line and columns of all symbols might not be correct
 				inspectionToRename@Inspector(request)(inspectionResponse)
+				valueToPrettyString@StringUtils(inspectionResponse)(pretty)
+				println@Console("inspectionResponse:\n"+pretty)()
 
 				// right now each symbol only exists one time in the symboltable and all places to rename cannot be found
 				for(i = 0, i < #inspectionResponse.module, i++){
@@ -552,6 +554,8 @@ service TextDocument {
 						}
 					}
 				}
+				valueToPrettyString@StringUtils(response)(finalResponse)
+				println@Console("finalResponse:\n"+finalResponse)()
 			}
 		}]
 	}

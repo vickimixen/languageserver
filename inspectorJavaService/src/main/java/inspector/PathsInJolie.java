@@ -35,6 +35,7 @@ import jolie.cli.CommandLineException;
 import jolie.lang.CodeCheckException;
 import jolie.lang.parse.SemanticVerifier;
 import jolie.lang.parse.module.LocalSymbolInfo;
+import jolie.lang.parse.module.Modules.ModuleParsedResult;
 import jolie.runtime.JavaService;
 import jolie.runtime.Value;
 import jolie.runtime.ValueVector;
@@ -48,6 +49,7 @@ public class PathsInJolie extends JavaService{
      * @return path as a string
      */
     private String packagePathToPath(String packagePath){
+        System.out.println("packagePath: "+packagePath);
         String[] splitByDot = packagePath.split("\\.");
         // count how many dots are in front of the first word in the packagePath
         int prePath = 0;
@@ -75,6 +77,7 @@ public class PathsInJolie extends JavaService{
             // add the two parts of the path
             packagePath = extraSeparators+packagePath;
         }
+        System.out.println("new packagepath: "+packagePath);
         return packagePath;
 
     }
@@ -195,7 +198,7 @@ public class PathsInJolie extends JavaService{
                 Path temp = filePath.toPath();
                 String source = Files.readString(temp);
                 String[] includePaths = new String[]{};
-                final SemanticVerifier parseResult = Inspector.getModuleInspector( filePath.toString(), Optional.of( source ), includePaths, interpreter() );
+                final ModuleParsedResult parseResult = Inspector.getModuleInspector( filePath.toString(), Optional.of( source ), includePaths, interpreter() );
                 for (LocalSymbolInfo localSymbol : parseResult.symbolTables().get(filePath.toURI()).localSymbols()) {
                     if(localSymbol.name().startsWith(symbol)){
                         possibleSymbolsVector.add(Value.create(localSymbol.name()));
